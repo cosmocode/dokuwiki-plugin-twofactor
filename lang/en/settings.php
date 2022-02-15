@@ -1,5 +1,4 @@
 <?php
-$lang["enable"] = 'Turn on two factor authentication.';
 $lang["optinout"] = 'Configure how users can chose to use two factor authentication: Opt-In, Opt-Out, or Mandatory.';
 $lang["otpsubject"] = 'The subject line used when sending the OTP code.';
 $lang["otpcontent"] = 'Message to be delivered to the recipient. Must contain "$otp" to be replaced with the OTP code.';

@@ -1,5 +1,4 @@
 <?php
-$conf["enable"] = 0;
 $conf["optinout"] = 'optin';
 $conf["otpsubject"] = 'OTP Verification Code';
 $conf["otpcontent"] = '$otp is your verification code.';

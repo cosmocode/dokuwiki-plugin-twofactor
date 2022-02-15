@@ -45,9 +45,9 @@ class action_plugin_twofactor extends DokuWiki_Action_Plugin
     {
         $this->loadConfig();
         // Load the attribute helper if GA is active or not requiring use of email to send the OTP.
-        $requireAttribute = $this->getConf("enable") === 1;
-        $this->attribute = $requireAttribute ? $this->loadHelper('attribute',
-            'TwoFactor depends on the Attribute plugin, but the Attribute plugin is not installed!') : null;
+
+        $this->attribute = $this->loadHelper('attribute',
+            'TwoFactor depends on the Attribute plugin, but the Attribute plugin is not installed!');
         // Now figure out what modules to load and load them.
         $available = Twofactor_Auth_Module::_listModules();
         $allmodules = Twofactor_Auth_Module::_loadModules($available);

@@ -1,5 +1,4 @@
 <?php
-$meta["enable"] = array('onoff');
 $meta["optinout"] = array('multichoice', '_choices' => array('optin', 'optout', 'mandatory'));
 $meta["otpsubject"] = array('string');
 $meta["otpcontent"] = array('string');
