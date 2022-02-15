@@ -75,8 +75,6 @@ class action_plugin_twofactor extends DokuWiki_Action_Plugin
             if ($firstlogin) {
                 $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
             }
-            // Adds our twofactor profile to the user tools.
-            $controller->register_hook('TEMPLATE_USERTOOLS_DISPLAY', 'BEFORE', $this, 'twofactor_usertools_action');
             // For newer DokuWiki this adds our twofactor profile to the user menu.
             $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'twofactor_menu_action');
             // Manage action flow around the twofactor authentication requirements.
@@ -91,16 +89,6 @@ class action_plugin_twofactor extends DokuWiki_Action_Plugin
             // Atempts to process the second login if the user hasn't done so already.
             $controller->register_hook('AUTH_LOGIN_CHECK', 'AFTER', $this, 'twofactor_after_auth_check');
             $this->log('register: Session: ' . print_r($_SESSION, true), self::LOGGING_DEBUGPLUS);
-        }
-    }
-
-    public function twofactor_usertools_action(&$event, $param)
-    {
-        global $INPUT;
-        $this->log('twofactor_usertools_action: start', self::LOGGING_DEBUG);
-        if ($INPUT->server->has('REMOTE_USER')) {
-            $menuitem = tpl_action('twofactor_profile', true, 'li', true);
-            array_unshift($event->data['items'], $menuitem);
         }
     }
 
