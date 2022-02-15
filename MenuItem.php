@@ -26,4 +26,11 @@ class MenuItem extends Profile
     {
         return 'twofactor_profile';
     }
+
+    /** @inheritdoc */
+    public function getSvg()
+    {
+        return __DIR__ . '/admin.svg';
+    }
+
 }
