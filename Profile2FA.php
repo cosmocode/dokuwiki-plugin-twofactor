@@ -7,21 +7,24 @@ namespace dokuwiki\Menu\Item;
  *
  * Open the user's 2FA profile
  */
-class Profile2FA extends Profile {
+class Profile2FA extends Profile
+{
 
     /** @inheritdoc */
-    public function __construct($label='') {
+    public function __construct($label = '')
+    {
         global $INPUT;
         parent::__construct();
 
         // Borrow the Profile  language construct.
         global $lang;
-        $this->label = $label ? $label : $lang['btn_profile'].' (2FA)';        
+        $this->label = $label ? $label : $lang['btn_profile'] . ' (2FA)';
 
     }
 
-    public function getType() {
-        if($this->type === '') {
+    public function getType()
+    {
+        if ($this->type === '') {
             $this->type = 'twofactor_profile';
         }
         return $this->type;
