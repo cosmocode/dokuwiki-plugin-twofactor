@@ -67,49 +67,55 @@ class action_plugin_twofactor extends DokuWiki_Action_Plugin
      */
     public function register(Doku_Event_Handler $controller)
     {
-        if ($this->getConf("enable") === 1 && $this->success) {
-            $firstlogin = false;
-            foreach ($this->modules as $mod) {
-                $firstlogin |= $mod->canAuthLogin();
-            }
-            if ($firstlogin) {
-                $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
-            }
-            // For newer DokuWiki this adds our twofactor profile to the user menu.
-            $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'twofactor_menu_action');
-            // Manage action flow around the twofactor authentication requirements.
-            $controller->register_hook('ACTION_ACT_PREPROCESS', 'BEFORE', $this, 'twofactor_action_process_handler',
-                null, -999999);
-            // Handle the twofactor login and profile actions.
-            $controller->register_hook('TPL_ACT_UNKNOWN', 'BEFORE', $this, 'twofactor_handle_unknown_action');
-            $controller->register_hook('TPL_ACTION_GET', 'BEFORE', $this, 'twofactor_get_unknown_action');
-            // If the user supplies a token code at login, checks it before logging the user in.
-            $controller->register_hook('AUTH_LOGIN_CHECK', 'BEFORE', $this, 'twofactor_before_auth_check', null,
-                -999999);
-            // Atempts to process the second login if the user hasn't done so already.
-            $controller->register_hook('AUTH_LOGIN_CHECK', 'AFTER', $this, 'twofactor_after_auth_check');
-            $this->log('register: Session: ' . print_r($_SESSION, true), self::LOGGING_DEBUGPLUS);
+        if (!$this->success) return;
+
+        $firstlogin = false;
+        foreach ($this->modules as $mod) {
+            $firstlogin |= $mod->canAuthLogin();
         }
+        if ($firstlogin) {
+            $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
+        }
+
+        // Adds our twofactor profile to the user menu.
+        $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'handleUserMenuAssembly');
+
+        // Manage action flow around the twofactor authentication requirements.
+        $controller->register_hook('ACTION_ACT_PREPROCESS', 'BEFORE', $this, 'twofactor_action_process_handler',
+            null, -999999);
+        // Handle the twofactor login and profile actions.
+        $controller->register_hook('TPL_ACT_UNKNOWN', 'BEFORE', $this, 'twofactor_handle_unknown_action');
+        $controller->register_hook('TPL_ACTION_GET', 'BEFORE', $this, 'twofactor_get_unknown_action');
+        // If the user supplies a token code at login, checks it before logging the user in.
+        $controller->register_hook('AUTH_LOGIN_CHECK', 'BEFORE', $this, 'twofactor_before_auth_check', null,
+            -999999);
+        // Atempts to process the second login if the user hasn't done so already.
+        $controller->register_hook('AUTH_LOGIN_CHECK', 'AFTER', $this, 'twofactor_after_auth_check');
+        $this->log('register: Session: ' . print_r($_SESSION, true), self::LOGGING_DEBUGPLUS);
+
     }
 
-    public function twofactor_menu_action(Doku_Event $event)
+    /**
+     * Add 2fa Menu Item
+     * @param Doku_Event $event
+     */
+    public function handleUserMenuAssembly(Doku_Event $event)
     {
-        require_once(dirname(__FILE__) . '/Profile2FA.php');
         global $INPUT;
-        $this->log('twofactor_menu_action: start', self::LOGGING_DEBUG);
         // If this is not the user menu, then get out.
         if ($event->data['view'] != 'user') return;
-        if ($INPUT->server->has('REMOTE_USER')) {
-            // Create the new menu item
-            $menuitem = new dokuwiki\Menu\Item\Profile2FA($this->getLang('btn_twofactor_profile'));
-            // Find index of existing Profile menu item.
-            for ($index = 0; $index > count($event->data['items']); $index++) {
-                if ($event->data['items'][$index]->getType() === 'profile') {
-                    break;
-                }
+        if (!$INPUT->server->has('REMOTE_USER')) return;
+
+        // Create the new menu item
+        $menuitem = new dokuwiki\plugin\twofactor\MenuItem($this->getLang('btn_twofactor_profile'));
+
+        // Find index of existing Profile menu item.
+        for ($index = 0; $index > count($event->data['items']); $index++) {
+            if ($event->data['items'][$index]->getType() === 'profile') {
+                break;
             }
-            array_splice($event->data['items'], $index + 1, 0, [$menuitem]);
         }
+        array_splice($event->data['items'], $index + 1, 0, [$menuitem]);
     }
 
     /**
