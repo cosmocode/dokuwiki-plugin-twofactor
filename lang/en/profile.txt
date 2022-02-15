@@ -1,0 +1,3 @@
+====== Two Factor Settings ======
+
+This is where you can configure what you want to use as a second factor besides your usual credentials when logging into DokuWiki. What options are available depends on what your administrator has configured.
