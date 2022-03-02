@@ -1,5 +1,7 @@
 <?php
 
+use dokuwiki\plugin\twofactor\Manager;
+use dokuwiki\plugin\twofactor\MenuItem;
 use dokuwiki\plugin\twofactor\Provider;
 
 /**
@@ -13,6 +15,8 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     /** @inheritDoc */
     public function register(Doku_Event_Handler $controller)
     {
+        if (!(Manager::getInstance())->isReady()) return;
+
         // Adds our twofactor profile to the user menu.
         $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'handleUserMenuAssembly');
 
@@ -33,7 +37,7 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
         if (!$INPUT->server->has('REMOTE_USER')) return;
 
         // Create the new menu item
-        $menuitem = new dokuwiki\plugin\twofactor\MenuItem($this->getLang('btn_twofactor_profile'));
+        $menuitem = new MenuItem($this->getLang('btn_twofactor_profile'));
 
         // Find index of existing Profile menu item.
         for ($index = 0; $index > count($event->data['items']); $index++) {
@@ -124,16 +128,11 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     protected function printProfile()
     {
         global $lang;
-        global $INPUT;
-
-        $user = $INPUT->server->str('REMOTE_USER');
 
         echo $this->locale_xhtml('profile');
 
-        // FIXME autoload available providers
-        $providers = [new helper_plugin_twofactoraltemail($user)];
-
         // iterate over all providers
+        $providers = (Manager::getInstance())->getAllProviders();
         foreach ($providers as $provider) {
             $form = new dokuwiki\Form\Form(['method' => 'POST']);
             $form->setHiddenField('do', 'twofactor_profile');

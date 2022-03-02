@@ -249,18 +249,7 @@ abstract class Provider extends Plugin
         return $this->attribute->set("twofactor", $key, $value);
     }
 
-    /**
-     * This is a helper function that lists the names of all available
-     * modules.
-     * @return array - Names of availble modules.
-     */
-    static public function _listModules()
-    {
-        $modules = plugin_list();
-        return array_filter($modules, function ($x) {
-            return substr($x, 0, 9) === 'twofactor' && $x !== 'twofactor';
-        });
-    }
+
 
     /**
      * This is a helper function that attempts to load the named modules.

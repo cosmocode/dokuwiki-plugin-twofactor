@@ -1,6 +1,5 @@
 <?php
-// must be run within Dokuwiki
-if (!defined('DOKU_INC')) die();
+
 /**
  * Two Factor Action Plugin
  *
@@ -30,6 +29,8 @@ if (!defined('DOKU_INC')) die();
  */
 
 // Create a definition for a 2FA cookie.
+use dokuwiki\plugin\twofactor\Manager;
+
 define('TWOFACTOR_COOKIE', '2FA' . DOKU_COOKIE);
 
 class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
@@ -42,6 +43,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 
     public function __construct()
     {
+
+        /*
         $this->loadConfig();
         // Load the attribute helper if GA is active or not requiring use of email to send the OTP.
 
@@ -59,6 +62,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         });
         // Sanity check.
         $this->success = (!$requireAttribute || ($this->attribute && $this->attribute->success)) && count($this->modules) > 0;
+        */
     }
 
     /**
@@ -66,6 +70,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     public function register(Doku_Event_Handler $controller)
     {
+        if (!(Manager::getInstance())->isReady()) return;
+
         if (!$this->success) return;
 
         $firstlogin = false;
@@ -75,7 +81,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if ($firstlogin) {
             $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
         }
-
 
         // Manage action flow around the twofactor authentication requirements.
         $controller->register_hook('ACTION_ACT_PREPROCESS', 'BEFORE', $this, 'twofactor_action_process_handler',
@@ -93,7 +98,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 
     }
 
-
     /**
      * Handles the login form rendering.
      */
@@ -105,8 +109,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $pos = $event->data->findElementByAttribute('name', 'p');
         $event->data->insertElement($pos + 1, $twofa_form);
     }
-
-
 
     /**
      * Action process redirector.  If logging out, processes the logout
@@ -233,7 +235,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         // Otherwise everything is good!
         return;
     }
-
 
     public function twofactor_handle_unknown_action(Doku_Event $event, $param)
     {
