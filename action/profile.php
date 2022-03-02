@@ -1,5 +1,7 @@
 <?php
 
+use dokuwiki\plugin\twofactor\Provider;
+
 /**
  * DokuWiki Plugin twofactor (Action Component)
  *
@@ -65,6 +67,8 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             return;
         }
 
+        $this->handleProfile();
+
         /** FIXME
          *
          * // If not logged into twofactor then send there.
@@ -92,21 +96,58 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     }
 
     /**
+     * Handle POSTs for provider forms
+     */
+    protected function handleProfile()
+    {
+        global $INPUT;
+        if (!$INPUT->has('provider')) return;
+        $user = $INPUT->server->str('REMOTE_USER');
+
+        $class = 'helper_plugin_' . $INPUT->str('provider');
+        /** @var Provider $provider */
+        $provider = new $class($user);
+
+        if (!checkSecurityToken()) return;
+
+        if (!$provider->isConfigured()) {
+            $provider->handleProfileForm();
+        } elseif ($INPUT->has('2fa_delete')) {
+            $provider->reset();
+        }
+    }
+
+    /**
      * Handles the profile form rendering.  Displays user manageable settings.
      * @todo move elsewhere
      */
-    public function printProfile()
+    protected function printProfile()
     {
         global $lang;
+        global $INPUT;
 
+        $user = $INPUT->server->str('REMOTE_USER');
 
-        $form = new dokuwiki\Form\Form();
-        $form->addHTML($this->locale_xhtml('profile'));
+        echo $this->locale_xhtml('profile');
 
-        // FIXME iterate over providers, add a fieldset for each and add the elements provided
+        // FIXME autoload available providers
+        $providers = [new helper_plugin_twofactoraltemail($user)];
 
-        $form->addButton('save', $lang['btn_save']);
-        echo $form->toHTML();
+        // iterate over all providers
+        foreach ($providers as $provider) {
+            $form = new dokuwiki\Form\Form(['method' => 'POST']);
+            $form->setHiddenField('do', 'twofactor_profile');
+            $form->setHiddenField('provider', $provider->getProviderID());
+            $form->addFieldsetOpen($provider->getLabel());
+            $provider->renderProfileForm($form);
+            if (!$provider->isConfigured()) {
+                $form->addButton('2fa_submit', $lang['btn_save'])->attr('submit');
+            } else {
+                $form->addButton('2fa_delete', $lang['btn_delete'])->attr('submit');
+            }
+            $form->addFieldsetClose();
+            echo $form->toHTML();
+        }
 
         /* FIXME
 
