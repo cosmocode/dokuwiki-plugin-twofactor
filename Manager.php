@@ -2,10 +2,12 @@
 
 namespace dokuwiki\plugin\twofactor;
 
+use dokuwiki\Extension\Plugin;
+
 /**
  * Manages the child plugins etc.
  */
-class Manager
+class Manager extends Plugin
 {
     /** @var Manager */
     protected static $instance;
@@ -63,26 +65,82 @@ class Manager
     }
 
     /**
+     * @return bool|void
+     */
+    public function isRequired()
+    {
+        $set = $this->getConf('optinout');
+        if ($set === 'mandatory') {
+            return true;
+        }
+        // FIXME handle other options:
+        // when optout, return true unless user opted out
+
+        return false;
+    }
+
+    /**
+     * Convenience method to get current user
+     *
+     * @return string
+     */
+    public function getUser()
+    {
+        global $INPUT;
+        return $INPUT->server->str('REMOTE_USER');
+    }
+
+    /**
      * Get all available providers
      *
      * @return Provider[]
      */
     public function getAllProviders()
     {
-        global $INPUT;
-        $user = $INPUT->server->str('REMOTE_USER');
+        $user = $this->getUser();
         if (!$user) {
             throw new \RuntimeException('2fa Providers instantiated before user available');
         }
 
         if ($this->providers === null) {
             $this->providers = [];
-            foreach ($this->classes as $class) {
-                $this->providers[] = new $class($user);
+            foreach ($this->classes as $plugin => $class) {
+                $this->providers[$plugin] = new $class($user);
             }
         }
 
         return $this->providers;
+    }
+
+    /**
+     * Get all providers that have been already set up by the user
+     *
+     * The first in the list is their default choice
+     *
+     * @return Provider[]
+     */
+    public function getUserProviders()
+    {
+        $list = $this->getAllProviders();
+        $list = array_filter($list, function ($provider) {
+            return $provider->isConfigured();
+        });
+
+        // FIXME handle default provider
+        return $list;
+    }
+
+    /**
+     * Get the instance of the given provider
+     *
+     * @param string $providerID
+     * @return Provider
+     */
+    public function getUserProvider($providerID)
+    {
+        $providers = $this->getUserProviders();
+        if (isset($providers[$providerID])) return $providers[$providerID];
+        throw new \RuntimeException('Uncofigured provider requested');
     }
 
     /**
@@ -102,7 +160,7 @@ class Manager
         foreach ($plugins as $plugin) {
             $class = 'helper_plugin_' . $plugin;
             if (is_a($class, Provider::class, true)) {
-                $classes[] = $class;
+                $classes[$plugin] = $class;
             }
         }
 

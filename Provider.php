@@ -57,7 +57,7 @@ abstract class Provider extends Plugin
     }
 
     /**
-     * Has this provider been fully configured by the user and thus can be used
+     * Has this provider been fully configured and verified by the user and thus can be used
      * for authentication?
      *
      * @return bool
@@ -130,7 +130,7 @@ abstract class Provider extends Plugin
      *
      * @param string $code
      * @param int $tolerance
-     * @return string
+     * @return bool
      * @throws \Exception when no code can be created
      */
     public function checkCode($code, $tolerance = 2)

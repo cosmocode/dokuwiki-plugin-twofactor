@@ -35,34 +35,15 @@ define('TWOFACTOR_COOKIE', '2FA' . DOKU_COOKIE);
 
 class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 {
-    public $success = false;
-    private $attribute = null;
-    private $tokenMods = null;
-    private $otpMods = null;
-    private $setTime = false;
+    /** @var Manager */
+    protected $manager;
 
+    /**
+     * Constructor
+     */
     public function __construct()
     {
-
-        /*
-        $this->loadConfig();
-        // Load the attribute helper if GA is active or not requiring use of email to send the OTP.
-
-        $this->attribute = $this->loadHelper('attribute',
-            'TwoFactor depends on the Attribute plugin, but the Attribute plugin is not installed!');
-        // Now figure out what modules to load and load them.
-        $available = Twofactor_Auth_Module::_listModules();
-        $allmodules = Twofactor_Auth_Module::_loadModules($available);
-        $failed = array_diff($available, array_keys($allmodules));
-        if (count($failed) > 0) {
-            msg('At least one loaded module did not have a properly named class.' . ' ' . implode(', ', $failed), -1);
-        }
-        $this->modules = array_filter($allmodules, function ($obj) {
-            return $obj->getConf('enable') == 1;
-        });
-        // Sanity check.
-        $this->success = (!$requireAttribute || ($this->attribute && $this->attribute->success)) && count($this->modules) > 0;
-        */
+        $this->manager = Manager::getInstance();
     }
 
     /**
@@ -72,19 +53,31 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     {
         if (!(Manager::getInstance())->isReady()) return;
 
-        if (!$this->success) return;
+        // check 2fa requirements and either move to profile or login handling
+        $controller->register_hook(
+            'ACTION_ACT_PREPROCESS',
+            'BEFORE',
+            $this,
+            'handleActionPreProcess',
+            null,
+            -999999
+        );
 
-        $firstlogin = false;
-        foreach ($this->modules as $mod) {
-            $firstlogin |= $mod->canAuthLogin();
-        }
-        if ($firstlogin) {
-            $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
-        }
+        // display login form
+        $controller->register_hook(
+            'TPL_ACT_UNKNOWN',
+            'BEFORE',
+            $this,
+            'handleLoginDisplay'
+        );
+
+        // FIXME disable user in all non-main screens (media, detail, ajax, ...)
+
+        /*
+        $controller->register_hook('HTML_LOGINFORM_OUTPUT', 'BEFORE', $this, 'twofactor_login_form');
 
         // Manage action flow around the twofactor authentication requirements.
-        $controller->register_hook('ACTION_ACT_PREPROCESS', 'BEFORE', $this, 'twofactor_action_process_handler',
-            null, -999999);
+
         // Handle the twofactor login and profile actions.
         $controller->register_hook('TPL_ACT_UNKNOWN', 'BEFORE', $this, 'twofactor_handle_unknown_action');
         $controller->register_hook('TPL_ACTION_GET', 'BEFORE', $this, 'twofactor_get_unknown_action');
@@ -95,8 +88,136 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         // Atempts to process the second login if the user hasn't done so already.
         $controller->register_hook('AUTH_LOGIN_CHECK', 'AFTER', $this, 'twofactor_after_auth_check');
         $this->log('register: Session: ' . print_r($_SESSION, true), self::LOGGING_DEBUGPLUS);
-
+        */
     }
+
+    /**
+     * Decide if any 2fa handling needs to be done for the current user
+     *
+     * @param Doku_Event $event
+     */
+    public function handleActionPreProcess(Doku_Event $event)
+    {
+        if (!$this->manager->getUser()) return;
+
+        global $INPUT;
+
+        // already in a 2fa login?
+        if ($event->data === 'twofactor_login') {
+            if ($this->verify($INPUT->str('2fa_code'), $INPUT->str('2fa_provider'))) {
+                $event->data = 'show';
+            } else {
+                // show form
+                $event->preventDefault();
+                return;
+            }
+        }
+
+        // authed already, continue
+        if ($this->isAuthed()) {
+            return;
+        }
+
+        if (count($this->manager->getUserProviders())) {
+            // user has already 2fa set up - they need to authenticate before anything else
+            $event->data = 'twofactor_login';
+            $event->preventDefault();
+            $event->stopPropagation();
+            return;
+        }
+
+        if ($this->manager->isRequired()) {
+            // 2fa is required - they need to set it up now
+            // this will be handled by action/profile.php
+            $event->data = 'twofactor_profile';
+        }
+
+        // all good. proceed
+    }
+
+    /**
+     * Show a 2fa login screen
+     *
+     * @param Doku_Event $event
+     */
+    public function handleLoginDisplay(Doku_Event $event)
+    {
+        if ($event->data !== 'twofactor_login') return;
+        $event->preventDefault();
+        $event->stopPropagation();
+
+        global $INPUT;
+        $providerID = $INPUT->str('2fa_provider');
+        $providers = $this->manager->getUserProviders();
+        if (isset($providers[$providerID])) {
+            $provider = $providers[$providerID];
+            unset($providers[$providerID]);
+        } else {
+            $provider = array_shift($providers);
+        }
+
+        $form = new dokuwiki\Form\Form(['method' => 'code']);
+        $form->setHiddenField('2fa_provider', $provider->getProviderID());
+        $form->addFieldsetOpen($provider->getLabel());
+        try {
+            $code = $provider->generateCode();
+            $info = $provider->transmitMessage($code);
+            $form->addHTML('<p>' . hsc($info) . '</p>');
+            $form->addTextInput('2fa_code', 'Your Code');
+            $form->addButton('2fa', 'Submit')->attr('type', 'submit');
+        } catch (\Exception $e) {
+            msg(hsc($e->getMessage()), -1); // FIXME better handling
+        }
+        $form->addFieldsetClose();
+
+        if (count($providers)) {
+            $form->addFieldsetOpen('Alternative methods');
+            foreach ($providers as $prov) {
+                $link = $prov->getProviderID(); // FIXME build correct links
+
+                $form->addHTML($link);
+            }
+            $form->addFieldsetClose();
+        }
+
+        echo $form->toHTML();
+    }
+
+    /**
+     * Has the user already authenticated with the second factor?
+     * @return bool
+     */
+    protected function isAuthed()
+    {
+        // FIXME implement by checking cookie
+        // cookie should have
+        // provider
+        // some kind of secret?
+        // expire at the end of a session? What about remember me?
+        return false;
+    }
+
+    /**
+     * Verify a given code
+     *
+     * @return bool
+     * @throws Exception
+     */
+    protected function verify($code, $providerID)
+    {
+        if (!$code) return false;
+        if (!$providerID) return false;
+        $provider = $this->manager->getUserProvider($providerID);
+        $ok = $provider->checkCode($code);
+        if (!$ok) return false;
+
+        // FIXME store cookie
+
+        return true;
+    }
+
+
+    // region old shit
 
     /**
      * Handles the login form rendering.
@@ -946,4 +1067,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         #write "date level message"
         io_unlock($logfile);
     }
+
+    // endregion
 }
