@@ -31,10 +31,10 @@
 // Create a definition for a 2FA cookie.
 use dokuwiki\plugin\twofactor\Manager;
 
-define('TWOFACTOR_COOKIE', '2FA' . DOKU_COOKIE);
-
 class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 {
+    const TWOFACTOR_COOKIE = '2FA' . DOKU_COOKIE;
+
     /** @var Manager */
     protected $manager;
 
@@ -104,8 +104,13 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 
         // already in a 2fa login?
         if ($event->data === 'twofactor_login') {
-            if ($this->verify($INPUT->str('2fa_code'), $INPUT->str('2fa_provider'))) {
+            if ($this->verify(
+                $INPUT->str('2fa_code'),
+                $INPUT->str('2fa_provider'),
+                $INPUT->bool('sticky')
+            )) {
                 $event->data = 'show';
+                return;
             } else {
                 // show form
                 $event->preventDefault();
@@ -156,14 +161,16 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $provider = array_shift($providers);
         }
 
-        $form = new dokuwiki\Form\Form(['method' => 'code']);
+        $form = new dokuwiki\Form\Form(['method' => 'POST']);
+        $form->setHiddenField('do', 'twofactor_login');
         $form->setHiddenField('2fa_provider', $provider->getProviderID());
         $form->addFieldsetOpen($provider->getLabel());
         try {
             $code = $provider->generateCode();
             $info = $provider->transmitMessage($code);
             $form->addHTML('<p>' . hsc($info) . '</p>');
-            $form->addTextInput('2fa_code', 'Your Code');
+            $form->addTextInput('2fa_code', 'Your Code')->val('');
+            $form->addCheckbox('sticky', 'Remember this browser'); // reuse same name as login
             $form->addButton('2fa', 'Submit')->attr('type', 'submit');
         } catch (\Exception $e) {
             msg(hsc($e->getMessage()), -1); // FIXME better handling
@@ -189,12 +196,19 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     protected function isAuthed()
     {
-        // FIXME implement by checking cookie
-        // cookie should have
-        // provider
-        // some kind of secret?
-        // expire at the end of a session? What about remember me?
-        return false;
+        if (!isset($_COOKIE[self::TWOFACTOR_COOKIE])) return false;
+        $data = unserialize(base64_decode($_COOKIE[self::TWOFACTOR_COOKIE]));
+        if (!is_array($data)) return false;
+        list($providerID, $buid,) = $data;
+        if (auth_browseruid() !== $buid) return false;
+
+        try {
+            // ensure it's a still valid provider
+            $this->manager->getUserProvider($providerID);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**
@@ -203,15 +217,24 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      * @return bool
      * @throws Exception
      */
-    protected function verify($code, $providerID)
+    protected function verify($code, $providerID, $sticky)
     {
+        global $conf;
+
         if (!$code) return false;
         if (!$providerID) return false;
         $provider = $this->manager->getUserProvider($providerID);
         $ok = $provider->checkCode($code);
-        if (!$ok) return false;
+        if (!$ok) {
+            msg('code was wrong', -1);
+            return false;
+        }
 
-        // FIXME store cookie
+        // store cookie
+        $data = base64_encode(serialize([$providerID, auth_browseruid(), time()]));
+        $cookieDir = empty($conf['cookiedir']) ? DOKU_REL : $conf['cookiedir'];
+        $time = $sticky ? (time() + 60 * 60 * 24 * 365) : 0; //one year
+        setcookie(self::TWOFACTOR_COOKIE, $data, $time, $cookieDir, '', ($conf['securecookie'] && is_ssl()), true);
 
         return true;
     }

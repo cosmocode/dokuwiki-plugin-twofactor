@@ -87,6 +87,9 @@ abstract class Provider extends Plugin
     /**
      * Transmits the code to the user
      *
+     * If a provider does not transmit anything (eg. TOTP) simply
+     * return the message.
+     *
      * @param string $code The code to transmit
      * @return string Informational message for the user
      * @throw \Exception when the message can't be sent
