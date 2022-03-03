@@ -9,7 +9,6 @@ use dokuwiki\Menu\Item\Profile;
  */
 class MenuItem extends Profile
 {
-
     /** @inheritdoc */
     public function __construct($label = '')
     {
@@ -18,7 +17,6 @@ class MenuItem extends Profile
         // Borrow the Profile  language construct.
         global $lang;
         $this->label = $label ?: $lang['btn_profile'] . ' (2FA)';
-
     }
 
     /** @inheritdoc */
@@ -32,5 +30,4 @@ class MenuItem extends Profile
     {
         return __DIR__ . '/admin.svg';
     }
-
 }

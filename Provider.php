@@ -28,6 +28,8 @@ abstract class Provider extends Plugin
         $this->settings = new Settings($this->providerID, $user);
     }
 
+    // region Introspection methods
+
     /**
      * The ID of this provider
      *
@@ -47,6 +49,9 @@ abstract class Provider extends Plugin
     {
         return PhpString::ucfirst($this->providerID);
     }
+
+    // endregion
+    // region Configuration methods
 
     /**
      * Clear all settings
@@ -84,18 +89,7 @@ abstract class Provider extends Plugin
      */
     abstract public function handleProfileForm();
 
-    /**
-     * Transmits the code to the user
-     *
-     * If a provider does not transmit anything (eg. TOTP) simply
-     * return the message.
-     *
-     * @param string $code The code to transmit
-     * @return string Informational message for the user
-     * @throw \Exception when the message can't be sent
-     */
-    abstract public function transmitMessage($code);
-
+    // endregion
     // region OTP methods
 
     /**
@@ -145,130 +139,17 @@ abstract class Provider extends Plugin
         return $ga->verifyCode($secret, $code, $tolerance);
     }
 
-    // endregion
-
-    // region old shit
-
     /**
-     * This is called to see if the user can use it to login.
-     * @return bool - True if this module has access to all needed information
-     * to perform a login.
+     * Transmits the code to the user
+     *
+     * If a provider does not transmit anything (eg. TOTP) simply
+     * return the message.
+     *
+     * @param string $code The code to transmit
+     * @return string Informational message for the user
+     * @throw \Exception when the message can't be sent
      */
-    abstract public function canUse($user = null);
-
-    /**
-     * This is called to see if the module provides login functionality on the
-     * main login page.
-     * @return bool - True if this module provides main login functionality.
-     */
-    abstract public function canAuthLogin();
-
-    /**
-     * This is called to process the user configurable portion of the module
-     * inside the user's profile.
-     * @return mixed - True if the user's settings were changed, false if
-     *     settings could not be changed, null if no settings were changed,
-     *     the string 'verified' if the module was successfully verified,
-     *     the string 'failed' if the module failed verification,
-     *       the string 'otp' if the module is requesting a one-time password
-     *     for verification,
-     *     the string 'deleted' if the module was unenrolled.
-     */
-    public function processProfileForm()
-    {
-        return null;
-    }
-
-    /**
-     * This is called to see if the module can send a message to the user.
-     * @return bool - True if a message can be sent to the user.
-     */
-    abstract public function canTransmitMessage();
-
-    /**
-     * This is called to validate the code provided.  The default is to see if
-     * the code matches the one-time password.
-     * @return bool - True if the user has successfully authenticated using
-     * this mechanism.
-     */
-    public function processLogin($code, $user = null)
-    {
-        $twofactor = plugin_load('action', 'twofactor');
-        $otpQuery = $twofactor->get_otp_code();
-        if (!$otpQuery) {
-            return false;
-        }
-        list($otp, $modname) = $otpQuery;
-        return ($code == $otp && $code != '' && (count($modname) == 0 || in_array(get_called_class(), $modname)));
-    }
-
-    /**
-     * This is a helper function to get text strings from the twofactor class
-     * calling this module.
-     * @return string - Language string from the calling class.
-     */
-    protected function _getSharedLang($key)
-    {
-        $twofactor = plugin_load('action', 'twofactor');
-        return $twofactor->getLang($key);
-    }
-
-    /**
-     * This is a helper function to get shared configuration options from the
-     * twofactor class.
-     * @return string - Language string from the calling class.
-     */
-    protected function _getSharedConfig($key)
-    {
-        $twofactor = plugin_load('action', 'twofactor');
-        return $twofactor->getConf($key);
-    }
-
-    /**
-     * This is a helper function to check for the existence of shared
-     * twofactor settings.
-     * @return string - Language string from the calling class.
-     */
-    protected function _sharedSettingExists($key)
-    {
-        return $this->attribute->exists("twofactor", $key);
-    }
-
-    /**
-     * This is a helper function to get shared twofactor settings.
-     * @return string - Language string from the calling class.
-     */
-    protected function _sharedSettingGet($key, $default = null, $user = null)
-    {
-        return $this->_sharedSettingExists($key) ? $this->attribute->get("twofactor", $key, $success, $user) : $default;
-    }
-
-    /**
-     * This is a helper function to set shared twofactor settings.
-     * @return string - Language string from the calling class.
-     */
-    protected function _sharedSettingSet($key, $value)
-    {
-        return $this->attribute->set("twofactor", $key, $value);
-    }
-
-
-
-    /**
-     * This is a helper function that attempts to load the named modules.
-     * @return array - An array of instanced objects from the loaded modules.
-     */
-    static public function _loadModules($mods)
-    {
-        $objects = array();
-        foreach ($mods as $mod) {
-            $obj = plugin_load('helper', $mod);
-            if ($obj && is_a($obj, 'Twofactor_Auth_Module')) {
-                $objects[$mod] = $obj;
-            }
-        }
-        return $objects;
-    }
+    abstract public function transmitMessage($code);
 
     // endregion
 }
