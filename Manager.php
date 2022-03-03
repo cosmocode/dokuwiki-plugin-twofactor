@@ -42,6 +42,14 @@ class Manager extends Plugin
     }
 
     /**
+     * This is not a conventional class, plugin name can't be determined automatically
+     * @inheritdoc
+     */
+    public function getPluginName() {
+        return 'twofactor';
+    }
+
+    /**
      * Get the instance of this singleton
      *
      * @return Manager
@@ -75,8 +83,12 @@ class Manager extends Plugin
         if ($set === 'mandatory') {
             return true;
         }
-        // FIXME handle other options:
-        // when optout, return true unless user opted out
+        if ($set === 'optout') {
+            $setting = new Settings('twofactor', $this->getUser());
+            if ($setting->get('state') !== 'optout') {
+                return true;
+            }
+        }
 
         return false;
     }
@@ -94,6 +106,35 @@ class Manager extends Plugin
             throw new \RuntimeException('2fa user specifics used before user available');
         }
         return $user;
+    }
+
+    /**
+     * Get or set the user opt-out state
+     *
+     * true: user opted out
+     * false: user did not opt out
+     *
+     * @param bool|null $set
+     * @return bool
+     */
+    public function userOptOutState($set = null)
+    {
+        // is optout allowed?
+        if ($this->getConf('optinout') !== 'optout') return false;
+
+        $settings = new Settings('twofactor', $this->getUser());
+
+        if ($set === null) {
+            $current = $settings->get('state');
+            return $current === 'optout';
+        }
+
+        if ($set) {
+            $settings->set('state', 'optout');
+        } else {
+            $settings->delete('state');
+        }
+        return $set;
     }
 
     /**

@@ -3,7 +3,6 @@
 use dokuwiki\Form\Form;
 use dokuwiki\plugin\twofactor\Manager;
 use dokuwiki\plugin\twofactor\MenuItem;
-use dokuwiki\plugin\twofactor\Provider;
 
 /**
  * DokuWiki Plugin twofactor (Action Component)
@@ -82,7 +81,10 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             return;
         }
 
-        $this->handleProfile();
+        if (strtolower($INPUT->server->str('REQUEST_METHOD')) == 'post') {
+            $this->handleProfile();
+        }
+
     }
 
     /**
@@ -103,14 +105,17 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     protected function handleProfile()
     {
         global $INPUT;
-        if (!$INPUT->has('provider')) return;
-        $user = $INPUT->server->str('REMOTE_USER');
-
-        $class = 'helper_plugin_' . $INPUT->str('provider');
-        /** @var Provider $provider */
-        $provider = new $class($user);
-
         if (!checkSecurityToken()) return;
+
+        if ($INPUT->has('2fa_optout') && $this->getConf('optinout') === 'optout') {
+            $this->manager->userOptOutState($INPUT->bool('optout'));
+            return;
+        }
+
+        if (!$INPUT->has('provider')) return;
+        $providers = $this->manager->getAllProviders();
+        if (!isset($providers[$INPUT->str('provider')])) return;
+        $provider = $providers[$INPUT->str('provider')];
 
         if (!$provider->isConfigured()) {
             $provider->handleProfileForm();
@@ -124,12 +129,40 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
 
     /**
      * Handles the profile form rendering.  Displays user manageable settings.
+     *
+     * @todo split up in smaller methods
      */
     protected function printProfile()
     {
         global $lang;
 
         echo $this->locale_xhtml('profile');
+
+        switch ($this->getConf('optinout')) {
+            case 'optout':
+                $form = new Form(['method' => 'post']);
+                $form->addFieldsetOpen('Opt Out');
+                $form->addHTML('<p>This wiki highly recomends 2fa, if you don\'t want it opt out here...</p>');
+                $cb = $form->addCheckbox('optout', 'I understand my account is less secure. I opt out');
+                if ($this->manager->userOptOutState()) {
+                    $cb->attr('checked', 'checked');
+                }
+                $form->addButton('2fa_optout', 'Save');
+                $form->addFieldsetClose();
+                echo $form->toHTML();
+
+                // when user opted out, don't show the rest of the form
+                if ($this->manager->userOptOutState()) {
+                    return;
+                }
+                break;
+            case 'optin':
+                echo '<p>Using 2fa is not mandatory but recommended. Please configure at least one of the providers...</p>';
+                break;
+            case 'mandatory':
+                echo '<p>The use of 2fa is mandatory you must configure at least one provider before using the wiki...</p>';
+                break;
+        }
 
         // default provider selection
         $userproviders = $this->manager->getUserProviders();
