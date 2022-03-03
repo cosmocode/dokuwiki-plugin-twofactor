@@ -108,6 +108,16 @@ abstract class Provider extends Plugin
     }
 
     /**
+     * Get the secret for this provider
+     *
+     * @return string
+     */
+    public function getSecret()
+    {
+        return $this->settings->get('secret');
+    }
+
+    /**
      * Generate an auth code
      *
      * @return string

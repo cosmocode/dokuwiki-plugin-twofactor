@@ -1,6 +1,7 @@
 <?php
 
 use dokuwiki\plugin\twofactor\Manager;
+use dokuwiki\plugin\twofactor\Provider;
 
 /**
  * DokuWiki Plugin twofactor (Action Component)
@@ -159,12 +160,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if (!isset($_COOKIE[self::TWOFACTOR_COOKIE])) return false;
         $data = unserialize(base64_decode($_COOKIE[self::TWOFACTOR_COOKIE]));
         if (!is_array($data)) return false;
-        list($providerID, $buid,) = $data;
-        if (auth_browseruid() !== $buid) return false;
+        list($providerID, $hash,) = $data;
 
         try {
-            // ensure it's a still valid provider
-            $this->manager->getUserProvider($providerID);
+            $provider = $this->manager->getUserProvider($providerID);
+            if ($this->cookieHash($provider) !== $hash) return false;
             return true;
         } catch (\Exception $e) {
             return false;
@@ -191,11 +191,29 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         }
 
         // store cookie
-        $data = base64_encode(serialize([$providerID, auth_browseruid(), time()]));
+        $hash = $this->cookieHash($provider);
+        $data = base64_encode(serialize([$providerID, $hash, time()]));
         $cookieDir = empty($conf['cookiedir']) ? DOKU_REL : $conf['cookiedir'];
         $time = $sticky ? (time() + 60 * 60 * 24 * 365) : 0; //one year
         setcookie(self::TWOFACTOR_COOKIE, $data, $time, $cookieDir, '', ($conf['securecookie'] && is_ssl()), true);
 
         return true;
+    }
+
+    /**
+     * Create a hash that validates the cookie
+     *
+     * @param Provider $provider
+     * @return string
+     */
+    protected function cookieHash($provider)
+    {
+        return sha1(join("\n", [
+            $provider->getProviderID(),
+            $this->manager->getUser(),
+            $provider->getSecret(),
+            auth_browseruid(),
+            auth_cookiesalt(false, true),
+        ]));
     }
 }

@@ -135,12 +135,13 @@ class Manager extends Plugin
      *
      * @param string $providerID
      * @return Provider
+     * @throws \Exception
      */
     public function getUserProvider($providerID)
     {
         $providers = $this->getUserProviders();
         if (isset($providers[$providerID])) return $providers[$providerID];
-        throw new \RuntimeException('Uncofigured provider requested');
+        throw new \Exception('Uncofigured provider requested');
     }
 
     /**
