@@ -1,0 +1,3 @@
+This wiki has the ability to use two-factor authentication. It is highly recommended using it by configuring one or more of the providers below.
+
+However, this is completely optional. You can always come back here later.

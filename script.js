@@ -1,8 +1,10 @@
 /**
- * Add JavaScript confirmation to the User Delete button
+ * Add JavaScript confirmation to Delete buttons
  */
 jQuery(function () {
-    jQuery('#usrmgr__del').click(function () {
-        return confirm(LANG.del_confirm);
+    jQuery('.twofactor_delconfirm').click(function (event) {
+        if (window.confirm(LANG.del_confirm)) return;
+        event.preventDefault();
+        event.stopPropagation();
     });
 });

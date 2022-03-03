@@ -14,9 +14,12 @@ $lang['btn_return'] = "Return to content";
 
 # Messages displayed by menu
 $lang['updated'] = "Two factor configuration updated.";
-$lang['mandatory'] = "This wiki requires the use of two factor authentication.  You must configure at least one form of two factor authentication to continue.";
-$lang['optout_notice'] = "This wiki has the ability to use two factor authentication.  If you do not want to use this option, please uncheck the first box below, supply your password at the bottom, and save your settings.";
 $lang['not_configured_notice'] = "You have enabled two factor authentication, but no providers are properly configured. Please complete the configuration of at least one provider or disable two factor authentication.";
+
+$lang['providers'] = 'Provider Configuration';
+$lang['defaultprovider'] = 'Default Provider';
+$lang['optout'] = 'I don\'t want to use the more secure two-factor authentication.';
+$lang['btn_confirm'] = 'Confirm';
 
 # Text used at login
 $lang['twofactor_login'] = "Two Factor Authentication Token<br />(leave blank if not using)<br />";

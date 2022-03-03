@@ -7,6 +7,9 @@ use dokuwiki\plugin\twofactor\MenuItem;
 /**
  * DokuWiki Plugin twofactor (Action Component)
  *
+ * This handles the 2fa profile screen where users can set their 2fa preferences and configure the
+ * providers they want to use.
+ *
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
 class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
@@ -83,20 +86,30 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
 
         if (strtolower($INPUT->server->str('REQUEST_METHOD')) == 'post') {
             $this->handleProfile();
+            // we might have changed something important, make sure the whole workflow restarts
+            send_redirect(wl($ID, ['do' => 'twofactor_profile'], true, '&'));
         }
 
     }
 
     /**
+     * Output the forms
+     *
      * @param Doku_Event $event
      */
     public function handleUnknownAction(Doku_Event $event)
     {
         if ($event->data != 'twofactor_profile') return;
-
         $event->preventDefault();
         $event->stopPropagation();
-        $this->printProfile();
+
+        echo '<div class="plugin_twofactor_profile">';
+        echo $this->locale_xhtml('profile');
+        if ($this->printOptOutForm()) return;
+        $this->printDefaultProviderForm();
+        $this->printProviderForms();
+        echo '</div>';
+
     }
 
     /**
@@ -128,48 +141,52 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     }
 
     /**
-     * Handles the profile form rendering.  Displays user manageable settings.
+     * Print the opt-out form (if available)
      *
-     * @todo split up in smaller methods
+     * @return bool true if the user currently opted out
      */
-    protected function printProfile()
+    protected function printOptOutForm()
+    {
+        $optedout = false;
+        $setting = $this->getConf('optinout');
+
+        echo '<section class="state">';
+        echo $this->locale_xhtml($setting);
+
+        // optout form
+        if ($setting == 'optout') {
+            $form = new Form(['method' => 'post']);
+            $cb = $form->addCheckbox('optout', $this->getLang('optout'));
+            if ($this->manager->userOptOutState()) {
+                $cb->attr('checked', 'checked');
+            }
+            $form->addButton('2fa_optout', $this->getLang('btn_confirm'));
+            echo $form->toHTML();
+
+            // when user opted out, don't show the rest of the form
+            if ($this->manager->userOptOutState()) {
+                $optedout = true;
+            }
+        }
+
+        echo '</section>';
+        return $optedout;
+    }
+
+    /**
+     * Print the form where a user can select their default provider
+     *
+     * @return void
+     */
+    protected function printDefaultProviderForm()
     {
         global $lang;
 
-        echo $this->locale_xhtml('profile');
-
-        switch ($this->getConf('optinout')) {
-            case 'optout':
-                $form = new Form(['method' => 'post']);
-                $form->addFieldsetOpen('Opt Out');
-                $form->addHTML('<p>This wiki highly recomends 2fa, if you don\'t want it opt out here...</p>');
-                $cb = $form->addCheckbox('optout', 'I understand my account is less secure. I opt out');
-                if ($this->manager->userOptOutState()) {
-                    $cb->attr('checked', 'checked');
-                }
-                $form->addButton('2fa_optout', 'Save');
-                $form->addFieldsetClose();
-                echo $form->toHTML();
-
-                // when user opted out, don't show the rest of the form
-                if ($this->manager->userOptOutState()) {
-                    return;
-                }
-                break;
-            case 'optin':
-                echo '<p>Using 2fa is not mandatory but recommended. Please configure at least one of the providers...</p>';
-                break;
-            case 'mandatory':
-                echo '<p>The use of 2fa is mandatory you must configure at least one provider before using the wiki...</p>';
-                break;
-        }
-
-        // default provider selection
         $userproviders = $this->manager->getUserProviders();
         $default = $this->manager->getUserDefaultProvider();
         if (count($userproviders)) {
             $form = new Form(['method' => 'POST']);
-            $form->addFieldsetOpen('Default Provider');
+            $form->addFieldsetOpen($this->getLang('defaultprovider'));
             foreach ($userproviders as $provider) {
                 $form->addRadioButton('provider', $provider->getLabel())
                      ->val($provider->getProviderID())
@@ -179,8 +196,21 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             $form->addFieldsetClose();
             echo $form->toHTML();
         }
+    }
 
-        // iterate over all providers
+    /**
+     * Prints a form for each available provider to configure
+     *
+     * @return void
+     */
+    protected function printProviderForms()
+    {
+        global $lang;
+
+        echo '<section class="providers">';
+        echo '<h2>' . $this->getLang('providers') . '</h2>';
+
+        echo '<div>';
         $providers = $this->manager->getAllProviders();
         foreach ($providers as $provider) {
             $form = new dokuwiki\Form\Form(['method' => 'POST']);
@@ -189,13 +219,19 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             $form->addFieldsetOpen($provider->getLabel());
             $provider->renderProfileForm($form);
             if (!$provider->isConfigured()) {
-                $form->addButton('2fa_submit', $lang['btn_save'])->attr('submit');
+                $form->addButton('2fa_submit', $lang['btn_save'])->attr('type', 'submit');
             } else {
-                $form->addButton('2fa_delete', $lang['btn_delete'])->attr('submit');
+                $form->addButton('2fa_delete', $lang['btn_delete'])
+                     ->addClass('twofactor_delconfirm')
+                     ->attr('type', 'submit');
             }
             $form->addFieldsetClose();
             echo $form->toHTML();
         }
+        echo '</div>';
+
+        echo '</section>';
     }
 }
+
 
