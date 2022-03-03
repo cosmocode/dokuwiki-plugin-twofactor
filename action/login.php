@@ -112,6 +112,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $event->stopPropagation();
 
         global $INPUT;
+        global $ID;
+
         $providerID = $INPUT->str('2fa_provider');
         $providers = $this->manager->getUserProviders();
         if (isset($providers[$providerID])) {
@@ -141,9 +143,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if (count($providers)) {
             $form->addFieldsetOpen('Alternative methods');
             foreach ($providers as $prov) {
-                $link = $prov->getProviderID(); // FIXME build correct links
-
-                $form->addHTML($link);
+                $url = wl($ID, [
+                    'do' => 'twofactor_login',
+                    '2fa_provider' => $prov->getProviderID(),
+                ]);
+                $form->addHTML('< href="' . $url . '">' . hsc($prov->getLabel()) . '</a>');
             }
             $form->addFieldsetClose();
         }
