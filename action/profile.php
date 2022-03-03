@@ -1,5 +1,6 @@
 <?php
 
+use dokuwiki\Form\Form;
 use dokuwiki\plugin\twofactor\Manager;
 use dokuwiki\plugin\twofactor\MenuItem;
 use dokuwiki\plugin\twofactor\Provider;
@@ -11,11 +12,21 @@ use dokuwiki\plugin\twofactor\Provider;
  */
 class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
 {
+    /** @var Manager */
+    protected $manager;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->manager = Manager::getInstance();
+    }
 
     /** @inheritDoc */
     public function register(Doku_Event_Handler $controller)
     {
-        if (!(Manager::getInstance())->isReady()) return;
+        if (!$this->manager->isReady()) return;
 
         // Adds our twofactor profile to the user menu.
         $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'handleUserMenuAssembly');
@@ -118,12 +129,14 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             $provider->handleProfileForm();
         } elseif ($INPUT->has('2fa_delete')) {
             $provider->reset();
+            $this->manager->getUserDefaultProvider(); // resets the default to the next available
+        } elseif ($INPUT->has('2fa_default')) {
+            $this->manager->setUserDefaultProvider($provider);
         }
     }
 
     /**
      * Handles the profile form rendering.  Displays user manageable settings.
-     * @todo move elsewhere
      */
     protected function printProfile()
     {
@@ -131,8 +144,24 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
 
         echo $this->locale_xhtml('profile');
 
+        // default provider selection
+        $userproviders = $this->manager->getUserProviders();
+        $default = $this->manager->getUserDefaultProvider();
+        if (count($userproviders)) {
+            $form = new Form(['method' => 'POST']);
+            $form->addFieldsetOpen('Default Provider');
+            foreach ($userproviders as $provider) {
+                $form->addRadioButton('provider', $provider->getLabel())
+                     ->val($provider->getProviderID())
+                     ->attr('checked', $provider->getProviderID() === $default->getProviderID());
+            }
+            $form->addButton('2fa_default', $lang['btn_save'])->attr('submit');
+            $form->addFieldsetClose();
+            echo $form->toHTML();
+        }
+
         // iterate over all providers
-        $providers = (Manager::getInstance())->getAllProviders();
+        $providers = $this->manager->getAllProviders();
         foreach ($providers as $provider) {
             $form = new dokuwiki\Form\Form(['method' => 'POST']);
             $form->setHiddenField('do', 'twofactor_profile');

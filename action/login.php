@@ -156,10 +156,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $providers = $this->manager->getUserProviders();
         if (isset($providers[$providerID])) {
             $provider = $providers[$providerID];
-            unset($providers[$providerID]);
         } else {
-            $provider = array_shift($providers);
+            $provider = $this->manager->getUserDefaultProvider();
         }
+        // remove current provider from list
+        unset($providers[$provider->getProviderID()]);
 
         $form = new dokuwiki\Form\Form(['method' => 'POST']);
         $form->setHiddenField('do', 'twofactor_login');

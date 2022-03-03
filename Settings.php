@@ -22,12 +22,11 @@ class Settings
     /**
      * @param string $module Name of the provider
      * @param string $user User login
-     * @throws \Exception
      */
     public function __construct($module, $user)
     {
         $this->attribute = plugin_load('helper', 'attribute');
-        if ($this->attribute === null) throw new \Exception('attribute plugin not found');
+        if ($this->attribute === null) throw new \RuntimeException('attribute plugin not found');
 
         $this->providerID = $module;
         $this->user = $user;

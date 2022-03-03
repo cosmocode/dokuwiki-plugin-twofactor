@@ -65,7 +65,9 @@ class Manager extends Plugin
     }
 
     /**
-     * @return bool|void
+     * Is a 2fa login required?
+     *
+     * @return bool
      */
     public function isRequired()
     {
@@ -87,7 +89,11 @@ class Manager extends Plugin
     public function getUser()
     {
         global $INPUT;
-        return $INPUT->server->str('REMOTE_USER');
+        $user = $INPUT->server->str('REMOTE_USER');
+        if (!$user) {
+            throw new \RuntimeException('2fa user specifics used before user available');
+        }
+        return $user;
     }
 
     /**
@@ -98,9 +104,6 @@ class Manager extends Plugin
     public function getAllProviders()
     {
         $user = $this->getUser();
-        if (!$user) {
-            throw new \RuntimeException('2fa Providers instantiated before user available');
-        }
 
         if ($this->providers === null) {
             $this->providers = [];
@@ -115,8 +118,6 @@ class Manager extends Plugin
     /**
      * Get all providers that have been already set up by the user
      *
-     * The first in the list is their default choice
-     *
      * @return Provider[]
      */
     public function getUserProviders()
@@ -126,7 +127,6 @@ class Manager extends Plugin
             return $provider->isConfigured();
         });
 
-        // FIXME handle default provider
         return $list;
     }
 
@@ -141,6 +141,40 @@ class Manager extends Plugin
         $providers = $this->getUserProviders();
         if (isset($providers[$providerID])) return $providers[$providerID];
         throw new \RuntimeException('Uncofigured provider requested');
+    }
+
+    /**
+     * Get the user's default provider if any
+     *
+     * Autoupdates the apropriate setting
+     *
+     * @return Provider|null
+     */
+    public function getUserDefaultProvider()
+    {
+        $setting = new Settings('twofactor', $this->getUser());
+        $default = $setting->get('defaultmod');
+        $providers = $this->getUserProviders();
+
+        if (isset($providers[$default])) return $providers[$default];
+        // still here? no valid setting. Use first available one
+        $first = array_shift($providers);
+        if ($first !== null) {
+            $this->setUserDefaultProvider($first);
+        }
+        return $first;
+    }
+
+    /**
+     * Set the default provider for the user
+     *
+     * @param Provider $provider
+     * @return void
+     */
+    public function setUserDefaultProvider($provider)
+    {
+        $setting = new Settings('twofactor', $this->getUser());
+        $setting->set('defaultmod', $provider->getProviderID());
     }
 
     /**
