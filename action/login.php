@@ -58,7 +58,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     public function handleActionPreProcess(Doku_Event $event)
     {
-        if (!$this->manager->getUser()) return;
+        try {
+            $this->manager->getUser();
+        } catch (\Exception $ignored) {
+            return;
+        }
 
         global $INPUT;
 
