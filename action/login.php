@@ -35,7 +35,13 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             'handleLoginDisplay'
         );
 
-        // FIXME disable user in all non-main screens (media, detail, ajax, ...)
+        // disable user in all non-main screens (media, detail, ajax, ...)
+        $controller->register_hook(
+            'DOKUWIKI_INIT_DONE',
+            'BEFORE',
+            $this,
+            'handleInitDone'
+        );
     }
 
     /**
@@ -147,6 +153,25 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         }
 
         echo $form->toHTML();
+    }
+
+    /**
+     * Remove user info from non-main entry points while we wait for 2fa
+     *
+     * @param Doku_Event $event
+     */
+    public function handleInitDone(Doku_Event $event)
+    {
+        global $INPUT;
+
+        if (!(Manager::getInstance())->isReady()) return;
+        if (basename($INPUT->server->str('SCRIPT_NAME')) == DOKU_SCRIPT) return;
+        if ($this->isAuthed()) return;
+
+        // temporarily remove user info from environment
+        $INPUT->server->remove('REMOTE_USER');
+        unset($_SESSION[DOKU_COOKIE]['auth']);
+        unset($GLOBALS['USERINFO']);
     }
 
     /**
