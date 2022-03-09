@@ -1,131 +1,45 @@
 <?php
-/*
+
+use dokuwiki\Form\Form;
+use dokuwiki\plugin\twofactor\Manager;
+
+/**
  *  Twofactor Manager
  *
  *  Dokuwiki Admin Plugin
  *  Special thanks to the useradmin extension as a starting point for this class
  *
- *  @author  Mike Wilmes <mwilmes@avc.edu>
- */
-// must be run within Dokuwiki
-if (!defined('DOKU_INC')) die();
-
-if (!defined('DOKU_TWOFACTOR_PLUGIN_IMAGES')) define('DOKU_TWOFACTOR_PLUGIN_IMAGES',
-    DOKU_BASE . 'lib/plugins/twofactor/images/');
-
-/**
- * All DokuWiki plugins to extend the admin function
- * need to inherit from this class
+ * @author  Mike Wilmes <mwilmes@avc.edu>
  */
 class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
 {
-    protected $_user_list = array();     // list of users with attributes
-    protected $_filter = array();   // user selection filter(s)
-    protected $_start = 0;          // index of first user to be displayed
-    protected $_last = 0;           // index of the last user to be displayed
-    protected $_pagesize = 20;      // number of users to list on one page
-    protected $_disabled = '';      // if disabled set to explanatory string
-    protected $_lastdisabled = false; // set to true if last user is unknown and last button is hence buggy
+    protected $userList = array();     // list of users with attributes
+    protected $filter = array();   // user selection filter(s)
+    protected $start = 0;          // index of first user to be displayed
+    protected $last = 0;           // index of the last user to be displayed
+    protected $pagesize = 20;      // number of users to list on one page
+    protected $disabled = '';      // if disabled set to explanatory string
+    protected $lastdisabled = false; // set to true if last user is unknown and last button is hence buggy
+
+    /** @var helper_plugin_attribute */
+    protected $attribute;
 
     /**
      * Constructor
      */
     public function __construct()
     {
-        global $auth;
-
-        $this->setupLocale();
-
-        if (!isset($auth)) {
-            $this->_disabled = $this->lang['noauth'];
-        }
-
-        $requireAttribute = $this->getConf("enable") === 1;
-        $this->attribute = $requireAttribute ? $this->loadHelper('attribute',
-            'TwoFactor depends on the Attribute plugin, but the Attribute plugin is not installed!') : null;
-
-        $available = Twofactor_Auth_Module::_listModules();
-        $allmodules = Twofactor_Auth_Module::_loadModules($available);
-        $failed = array_diff($available, array_keys($allmodules));
-        if (count($failed) > 0) {
-            msg('At least one loaded module did not have a properly named class.' . ' ' . implode(', ', $failed), -1);
-        }
-        $this->modules = &$allmodules;
-        $this->_getUsers();
+        if (!(Manager::getInstance())->isReady()) return;
+        $this->attribute = plugin_load('helper', 'attribute');
+        $this->userList = $this->attribute->enumerateUsers('twofactor');
     }
 
-    protected function _getUsers()
-    {
-        if ($this->getConf("enable") === 1) {
-            if (!is_null($this->attribute)) {
-                $attr = $this->attribute;
-                $this->_user_list = $this->attribute->enumerateUsers('twofactor');
-            } else {
-                msg($this->lang['no_purpose'], -1);
-            }
-        }
-    }
-
-    /**
-     * Return prompt for admin menu
-     *
-     * @param string $language
-     * @return string
-     */
-    public function getMenuText($language)
-    {
-        global $INFO;
-        if (!$INFO['isadmin']) {
-            return parent::getMenuText($language);
-        }
-
-        return $this->getLang('menu') . ' ' . $this->_disabled;
-    }
-
-    /**
-     * return sort order for position in admin menu
-     *
-     * @return int
-     */
-    public function getMenuSort()
-    {
-        return 2;
-    }
-
-    /**
-     * @return int current start value for pageination
-     */
-    public function getStart()
-    {
-        return $this->_start;
-    }
-
-    /**
-     * @return int number of users per page
-     */
-    public function getPagesize()
-    {
-        return $this->_pagesize;
-    }
-
-    /**
-     * @param boolean $lastdisabled
-     */
-    public function setLastdisabled($lastdisabled)
-    {
-        $this->_lastdisabled = $lastdisabled;
-    }
-
-    /**
-     * Handle user request
-     *
-     * @return bool
-     */
+    /** @inheritdoc */
     public function handle()
     {
         global $INPUT, $INFO;
         if (!$INFO['isadmin']) return false;
-        if ($this->_disabled) {
+        if ($this->disabled) {
             // If disabled, don't process anything.
             return true;
         }
@@ -143,8 +57,8 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         }
 
         if ($cmd != "search") {
-            $this->_start = $INPUT->int('start', 0);
-            $this->_filter = $this->_retrieveFilter();
+            $this->start = $INPUT->int('start', 0);
+            $this->filter = $this->_retrieveFilter();
         }
 
         switch ($cmd) {
@@ -153,25 +67,25 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
                 break;
             case "search" :
                 $this->_setFilter($param);
-                $this->_start = 0;
+                $this->start = 0;
                 break;
         }
 
-        $this->_user_total = count($this->_user_list) > 0 ? $this->_getUserCount($this->_filter) : -1;
+        $this->_user_total = count($this->userList) > 0 ? $this->_getUserCount($this->filter) : -1;
 
         // page handling
         switch ($cmd) {
             case 'start' :
-                $this->_start = 0;
+                $this->start = 0;
                 break;
             case 'prev'  :
-                $this->_start -= $this->_pagesize;
+                $this->start -= $this->pagesize;
                 break;
             case 'next'  :
-                $this->_start += $this->_pagesize;
+                $this->start += $this->pagesize;
                 break;
             case 'last'  :
-                $this->_start = $this->_user_total;
+                $this->start = $this->_user_total;
                 break;
         }
         $this->_validatePagination();
@@ -187,113 +101,133 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     {
         global $ID, $INFO;
 
-        if (!$INFO['isadmin']) {
-            print $this->lang['badauth'];
-            return false;
+        $users = $this->getUsers($this->start, $this->pagesize, $this->filter);
+        $pagination = $this->getPagination();
+
+        echo $this->locale_xhtml('admin');
+
+        echo '<div id="user__manager">'; // FIXME do we reuse styles?
+        echo '<div class="level2">';
+
+        // FIXME check if isReady, display info if not
+
+        $form = new Form(['method' => 'POST']);
+        $form->setHiddenField('do', 'admin');
+        $form->setHiddenField('page', 'twofactor');
+        $form->setHiddenField('start', $this->start);
+
+        $form->addTagOpen('div')->addClass('table');
+        $form->addTagOpen('table')->addClass('inline');
+        $form = $this->addTableHead($form);
+
+        $form->addTagOpen('tbody');
+        foreach ($users as $user => $userinfo) {
+            $form = $this->addTableUser($form, $user, $userinfo);
         }
+        $form->addTagClose('tbody');
 
-        if ($this->disabled) {
-            msg($this->_disabled, -1);
-            return true;
-        }
+        $form->addTagClose('table');
+        $form->addTagClose('div');
 
-        $user_list = $this->_retrieveUsers($this->_start, $this->_pagesize, $this->_filter);
+        echo $form->toHTML();
 
-        $page_buttons = $this->_pagination();
-
-        print $this->locale_xhtml('intro');
-        print $this->locale_xhtml('list');
-
-        ptln("<div id=\"user__manager\">");
-        ptln("<div class=\"level2\">");
-
-        if (count($this->_user_list) > 0) {
-            ptln("<p>" . sprintf($this->lang['summary'], $this->_start + 1, $this->_last,
-                    $this->_getUserCount($this->_filter), count($this->_user_list)) . "</p>");
-        } else {
-            if (count($this->_user_list) < 0) {
-                $allUserTotal = 0;
-            } else {
-                $allUserTotal = count($this->_user_list);
-            }
-            ptln("<p>" . sprintf($this->lang['nonefound'], $allUserTotal) . "</p>");
-        }
-        ptln("<form action=\"" . wl($ID) . "\" method=\"post\">");
-        formSecurityToken();
-        ptln("  <div class=\"table\">");
-        ptln("  <table class=\"inline\">");
-        ptln("    <thead>");
-        ptln("      <tr>");
-        ptln("        <th>&#160;</th><th>" . $this->lang["user_id"] . "</th><th>" . $this->lang["user_name"] . "</th><th>" . $this->lang["user_mail"] . "</th>");
-        ptln("      </tr>");
-
-        ptln("      <tr>");
-        ptln("        <td class=\"rightalign\"><input type=\"image\" src=\"" . DOKU_TWOFACTOR_PLUGIN_IMAGES . "search.png\" name=\"fn[search][new]\" title=\"" . $this->lang['search_prompt'] . "\" alt=\"" . $this->lang['search'] . "\" class=\"button\" /></td>");
-        ptln("        <td><input type=\"text\" name=\"userid\" class=\"edit\" value=\"" . $this->_htmlFilter('user') . "\" /></td>");
-        ptln("        <td><input type=\"text\" name=\"username\" class=\"edit\" value=\"" . $this->_htmlFilter('name') . "\" /></td>");
-        ptln("        <td><input type=\"text\" name=\"usermail\" class=\"edit\" value=\"" . $this->_htmlFilter('mail') . "\" /></td>");
-        ptln("      </tr>");
-        ptln("    </thead>");
-
-        if ($this->_user_total) {
-            ptln("    <tbody>");
-            foreach ($user_list as $user => $userinfo) {
-                extract($userinfo);
-                /**
-                 * @var string $name
-                 * @var string $pass
-                 * @var string $mail
-                 * @var array $grps
-                 */
-                ptln("    <tr class=\"user_info\">");
-                ptln("      <td class=\"centeralign\"><input type=\"checkbox\" name=\"delete[" . hsc($user) . "]\" " . $delete_disable . " /></td>");
-                if ($editable) {
-                    ptln("    <td><a href=\"" . wl($ID, array(
-                            'fn[edit][' . $user . ']' => 1,
-                            'do' => 'admin',
-                            'page' => 'usermanager',
-                            'sectok' => getSecurityToken(),
-                        )) .
-                        "\" title=\"" . $this->lang['edit_prompt'] . "\">" . hsc($user) . "</a></td>");
-                } else {
-                    ptln("    <td>" . hsc($user) . "</td>");
-                }
-                ptln("      <td>" . hsc($name) . "</td><td>" . hsc($mail) . "</td>");
-                ptln("    </tr>");
-            }
-            ptln("    </tbody>");
-        }
-
-        ptln("    <tbody>");
-        ptln("      <tr><td colspan=\"5\" class=\"centeralign\">");
-        ptln("        <span class=\"medialeft\">");
-        ptln("          <button type=\"submit\" name=\"fn[reset]\" id=\"usrmgr__reset\" >" . $this->lang['reset_selected'] . "</button>");
-        ptln("        ");
-        if (!empty($this->_filter)) {
-            ptln("    <button type=\"submit\" name=\"fn[search][clear]\">" . $this->lang['clear'] . "</button>");
-        }
-        ptln("        <input type=\"hidden\" name=\"do\"    value=\"admin\" />");
-        ptln("        <input type=\"hidden\" name=\"page\"  value=\"twofactor\" />");
-
-        $this->_htmlFilterSettings(2);
-        ptln("        </span>");
-        ptln("        <span class=\"mediaright\">");
-        ptln("          <button type=\"submit\" name=\"fn[start]\" " . $page_buttons['start'] . ">" . $this->lang['start'] . "</button>");
-        ptln("          <button type=\"submit\" name=\"fn[prev]\" " . $page_buttons['prev'] . ">" . $this->lang['prev'] . "</button>");
-        ptln("          <button type=\"submit\" name=\"fn[next]\" " . $page_buttons['next'] . ">" . $this->lang['next'] . "</button>");
-        ptln("          <button type=\"submit\" name=\"fn[last]\" " . $page_buttons['last'] . ">" . $this->lang['last'] . "</button>");
-        ptln("        </span>");
-
-        ptln("      </td></tr>");
-        ptln("    </tbody>");
-        ptln("  </table>");
-        ptln("  </div>");
-
-        ptln("</form>");
-        ptln("</div>");
-
-        ptln("</div>");
         return true;
+    }
+
+    /**
+     * Add the table headers to the table in the given form
+     * @param Form $form
+     * @return Form
+     */
+    protected function addTableHead(Form $form)
+    {
+        $form->addTagOpen('thead');
+
+        // header
+        $form->addTagOpen('tr');
+        $form->addTagOpen('th');
+        $form->addHTML($this->getLang('user_id'));
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addHTML($this->getLang('user_name'));
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addHTML($this->getLang('user_mail'));
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addHTML($this->getLang('action'));
+        $form->addTagClose('th');
+        $form->addTagClose('tr');
+
+        // filter
+        $form->addTagOpen('tr');
+        $form->addTagOpen('th');
+        $form->addTextInput('userid');
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addTextInput('username');
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addTextInput('usermail');
+        $form->addTagClose('th');
+        $form->addTagOpen('th');
+        $form->addButton('', $this->getLang('search'))->attr('type', 'submit');
+        $form->addTagClose('th');
+        $form->addTagClose('tr');
+
+        $form->addTagClose('thead');
+        return $form;
+    }
+
+    /**
+     * Add
+     *
+     * @param Form $form
+     * @param $user
+     * @param $userinfo
+     * @return Form
+     */
+    protected function addTableUser(Form $form, $user, $userinfo)
+    {
+        $form->addTagOpen('tr');
+        $form->addTagOpen('td');
+        $form->addHTML(hsc($user));
+        $form->addTagClose('td');
+        $form->addTagOpen('td');
+        $form->addHTML(hsc($userinfo['name']));
+        $form->addTagClose('td');
+        $form->addTagOpen('td');
+        $form->addHTML(hsc($userinfo['mail']));
+        $form->addTagClose('td');
+        $form->addTagOpen('td');
+        $form->addButton('reset[' . $user . ']', $this->getLang('reset'))->attr('type', 'submit');
+        $form->addTagClose('td');
+        $form->addTagClose('tr');
+        return $form;
+    }
+
+    /**
+     * @return int current start value for pageination
+     */
+    public function getStart()
+    {
+        return $this->start;
+    }
+
+    /**
+     * @return int number of users per page
+     */
+    public function getPagesize()
+    {
+        return $this->pagesize;
+    }
+
+    /**
+     * @param boolean $lastdisabled
+     */
+    public function setLastdisabled($lastdisabled)
+    {
+        $this->lastdisabled = $lastdisabled;
     }
 
     /**
@@ -344,8 +278,8 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
      */
     protected function _htmlFilter($key)
     {
-        if (empty($this->_filter)) return '';
-        return (isset($this->_filter[$key]) ? hsc($this->_filter[$key]) : '');
+        if (empty($this->filter)) return '';
+        return (isset($this->filter[$key]) ? hsc($this->filter[$key]) : '');
     }
 
     /**
@@ -356,9 +290,9 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     protected function _htmlFilterSettings($indent = 0)
     {
 
-        ptln("<input type=\"hidden\" name=\"start\" value=\"" . $this->_start . "\" />", $indent);
+        ptln("<input type=\"hidden\" name=\"start\" value=\"" . $this->start . "\" />", $indent);
 
-        foreach ($this->_filter as $key => $filter) {
+        foreach ($this->filter as $key => $filter) {
             ptln("<input type=\"hidden\" name=\"filter[" . $key . "]\" value=\"" . hsc($filter) . "\" />", $indent);
         }
     }
@@ -414,7 +348,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         global $auth;
         $users = array();
         $noUsers = is_null($auth) || !$auth->canDo('getUsers');
-        foreach ($this->_user_list as $user) {
+        foreach ($this->userList as $user) {
             if ($noUsers) {
                 $userdata = array('user' => $user, 'name' => $user, 'mail' => null);
             } else {
@@ -439,7 +373,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         return count($this->_retrieveFilteredUsers($filter));
     }
 
-    protected function _retrieveUsers($start, $pagesize, $filter)
+    protected function getUsers($start, $pagesize, $filter)
     {
         $users = $this->_retrieveFilteredUsers($filter);
         return $users;
@@ -473,14 +407,14 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     protected function _setFilter($op)
     {
 
-        $this->_filter = array();
+        $this->filter = array();
 
         if ($op == 'new') {
             list($user, $name, $mail) = $this->_retrieveUser();
 
-            if (!empty($user)) $this->_filter['user'] = $user;
-            if (!empty($name)) $this->_filter['name'] = $name;
-            if (!empty($mail)) $this->_filter['mail'] = $mail;
+            if (!empty($user)) $this->filter['user'] = $user;
+            if (!empty($name)) $this->filter['name'] = $name;
+            if (!empty($mail)) $this->filter['mail'] = $mail;
         }
     }
 
@@ -511,12 +445,12 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     protected function _validatePagination()
     {
 
-        if ($this->_start >= $this->_user_total) {
-            $this->_start = $this->_user_total - $this->_pagesize;
+        if ($this->start >= $this->_user_total) {
+            $this->start = $this->_user_total - $this->pagesize;
         }
-        if ($this->_start < 0) $this->_start = 0;
+        if ($this->start < 0) $this->start = 0;
 
-        $this->_last = min($this->_user_total, $this->_start + $this->_pagesize);
+        $this->last = min($this->_user_total, $this->start + $this->pagesize);
     }
 
     /**
@@ -524,22 +458,22 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
      *
      * @return array with enable/disable attributes
      */
-    protected function _pagination()
+    protected function getPagination()
     {
 
         $disabled = 'disabled="disabled"';
 
         $buttons = array();
-        $buttons['start'] = $buttons['prev'] = ($this->_start == 0) ? $disabled : '';
+        $buttons['start'] = $buttons['prev'] = ($this->start == 0) ? $disabled : '';
 
         if ($this->_user_total == -1) {
             $buttons['last'] = $disabled;
             $buttons['next'] = '';
         } else {
-            $buttons['last'] = $buttons['next'] = (($this->_start + $this->_pagesize) >= $this->_user_total) ? $disabled : '';
+            $buttons['last'] = $buttons['next'] = (($this->start + $this->pagesize) >= $this->_user_total) ? $disabled : '';
         }
 
-        if ($this->_lastdisabled) {
+        if ($this->lastdisabled) {
             $buttons['last'] = $disabled;
         }
 
