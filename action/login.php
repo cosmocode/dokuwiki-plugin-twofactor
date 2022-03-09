@@ -66,6 +66,12 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             }
         }
 
+        // clear cookie on logout
+        if ($event->data === 'logout') {
+            $this->deAuth();
+            return;
+        }
+
         // authed already, continue
         if ($this->isAuthed()) {
             return;
@@ -111,6 +117,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         // remove current provider from list
         unset($providers[$provider->getProviderID()]);
 
+        echo $this->locale_xhtml('login');
         $form = new dokuwiki\Form\Form(['method' => 'POST']);
         $form->setHiddenField('do', 'twofactor_login');
         $form->setHiddenField('2fa_provider', $provider->getProviderID());
@@ -160,6 +167,20 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         } catch (Exception $ignored) {
             return false;
         }
+    }
+
+    /**
+     * Deletes the cookie
+     *
+     * @return void
+     */
+    protected function deAuth()
+    {
+        global $conf;
+
+        $cookieDir = empty($conf['cookiedir']) ? DOKU_REL : $conf['cookiedir'];
+        $time = time() - 60 * 60 * 24 * 365; // one year in the past
+        setcookie(self::TWOFACTOR_COOKIE, null, $time, $cookieDir, '', ($conf['securecookie'] && is_ssl()), true);
     }
 
     /**
