@@ -1,5 +1,6 @@
 <?php
 
+use dokuwiki\Extension\ActionPlugin;
 use dokuwiki\Form\Form;
 use dokuwiki\plugin\twofactor\Manager;
 use dokuwiki\plugin\twofactor\MenuItem;
@@ -12,24 +13,11 @@ use dokuwiki\plugin\twofactor\MenuItem;
  *
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
-class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
+class action_plugin_twofactor_profile extends ActionPlugin
 {
-    /** @var Manager */
-    protected $manager;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        $this->manager = Manager::getInstance();
-    }
-
     /** @inheritDoc */
     public function register(Doku_Event_Handler $controller)
     {
-        if (!$this->manager->isReady()) return;
-
         // Adds our twofactor profile to the user menu.
         $controller->register_hook('MENU_ITEMS_ASSEMBLY', 'AFTER', $this, 'handleUserMenuAssembly');
 
@@ -44,6 +32,8 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
      */
     public function handleUserMenuAssembly(Doku_Event $event)
     {
+        if (!(Manager::getInstance())->isReady()) return;
+
         global $INPUT;
         // If this is not the user menu, then get out.
         if ($event->data['view'] != 'user') return;
@@ -69,6 +59,7 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     public function handlePreProcess(Doku_Event $event)
     {
         if ($event->data != 'twofactor_profile') return;
+        if (!(Manager::getInstance())->isReady()) return;
 
         // We will be handling this action's permissions here.
         $event->preventDefault();
@@ -100,6 +91,7 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     public function handleUnknownAction(Doku_Event $event)
     {
         if ($event->data != 'twofactor_profile') return;
+        if (!(Manager::getInstance())->isReady()) return;
         $event->preventDefault();
         $event->stopPropagation();
 
@@ -119,14 +111,15 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     {
         global $INPUT;
         if (!checkSecurityToken()) return;
+        $manager = Manager::getInstance();
 
         if ($INPUT->has('2fa_optout') && $this->getConf('optinout') === 'optout') {
-            $this->manager->userOptOutState($INPUT->bool('optout'));
+            $manager->userOptOutState($INPUT->bool('optout'));
             return;
         }
 
         if (!$INPUT->has('provider')) return;
-        $providers = $this->manager->getAllProviders();
+        $providers = $manager->getAllProviders();
         if (!isset($providers[$INPUT->str('provider')])) return;
         $provider = $providers[$INPUT->str('provider')];
 
@@ -134,9 +127,9 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
             $provider->handleProfileForm();
         } elseif ($INPUT->has('2fa_delete')) {
             $provider->reset();
-            $this->manager->getUserDefaultProvider(); // resets the default to the next available
+            $manager->getUserDefaultProvider(); // resets the default to the next available
         } elseif ($INPUT->has('2fa_default')) {
-            $this->manager->setUserDefaultProvider($provider);
+            $manager->setUserDefaultProvider($provider);
         }
     }
 
@@ -147,6 +140,7 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
      */
     protected function printOptOutForm()
     {
+        $manager = Manager::getInstance();
         $optedout = false;
         $setting = $this->getConf('optinout');
 
@@ -157,14 +151,14 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
         if ($setting == 'optout') {
             $form = new Form(['method' => 'post']);
             $cb = $form->addCheckbox('optout', $this->getLang('optout'));
-            if ($this->manager->userOptOutState()) {
+            if ($manager->userOptOutState()) {
                 $cb->attr('checked', 'checked');
             }
             $form->addButton('2fa_optout', $this->getLang('btn_confirm'));
             echo $form->toHTML();
 
             // when user opted out, don't show the rest of the form
-            if ($this->manager->userOptOutState()) {
+            if ($manager->userOptOutState()) {
                 $optedout = true;
             }
         }
@@ -181,9 +175,10 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     protected function printDefaultProviderForm()
     {
         global $lang;
+        $manager = Manager::getInstance();
 
-        $userproviders = $this->manager->getUserProviders();
-        $default = $this->manager->getUserDefaultProvider();
+        $userproviders = $manager->getUserProviders();
+        $default = $manager->getUserDefaultProvider();
         if (count($userproviders)) {
             $form = new Form(['method' => 'POST']);
             $form->addFieldsetOpen($this->getLang('defaultprovider'));
@@ -206,12 +201,13 @@ class action_plugin_twofactor_profile extends \dokuwiki\Extension\ActionPlugin
     protected function printProviderForms()
     {
         global $lang;
+        $manager = Manager::getInstance();
 
         echo '<section class="providers">';
         echo '<h2>' . $this->getLang('providers') . '</h2>';
 
         echo '<div>';
-        $providers = $this->manager->getAllProviders();
+        $providers = $manager->getAllProviders();
         foreach ($providers as $provider) {
             $form = new dokuwiki\Form\Form(['method' => 'POST']);
             $form->setHiddenField('do', 'twofactor_profile');

@@ -2,6 +2,7 @@
 
 namespace dokuwiki\plugin\twofactor;
 
+use dokuwiki\Extension\Event;
 use dokuwiki\Extension\Plugin;
 
 /**
@@ -9,31 +10,36 @@ use dokuwiki\Extension\Plugin;
  */
 class Manager extends Plugin
 {
+    /**
+     * Generally all our actions should run before all other plugins
+     */
+    const EVENT_PRIORITY = -5000;
+
     /** @var Manager */
     protected static $instance;
 
     /** @var bool */
     protected $ready = false;
 
-    /** @var string[] */
-    protected $classes = [];
-
     /** @var Provider[] */
     protected $providers;
+
+    /** @var bool */
+    protected $providersInitialized;
 
     /**
      * Constructor
      */
     protected function __construct()
     {
-        $this->classes = $this->getProviderClasses();
-
         $attribute = plugin_load('helper', 'attribute');
         if ($attribute === null) {
             msg('The attribute plugin is not available, 2fa disabled', -1);
+            return;
         }
 
-        if (!count($this->classes)) {
+        $this->loadProviders();
+        if (!count($this->providers)) {
             msg('No suitable 2fa providers found, 2fa disabled', -1);
             return;
         }
@@ -45,7 +51,8 @@ class Manager extends Plugin
      * This is not a conventional class, plugin name can't be determined automatically
      * @inheritdoc
      */
-    public function getPluginName() {
+    public function getPluginName()
+    {
         return 'twofactor';
     }
 
@@ -69,7 +76,14 @@ class Manager extends Plugin
      */
     public function isReady()
     {
-        return $this->ready;
+        if (!$this->ready) return false;
+        try {
+            $this->getUser();
+        } catch (\Exception $ignored) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -146,11 +160,16 @@ class Manager extends Plugin
     {
         $user = $this->getUser();
 
-        if ($this->providers === null) {
-            $this->providers = [];
-            foreach ($this->classes as $plugin => $class) {
-                $this->providers[$plugin] = new $class($user);
+        if (!$this->providersInitialized) {
+            // initialize providers with user and ensure the ID is correct
+            foreach ($this->providers as $providerID => $provider) {
+                if ($providerID !== $provider->getProviderID()) {
+                    $this->providers[$provider->getProviderID()] = $provider;
+                    unset($this->providers[$providerID]);
+                }
+                $provider->init($user);
             }
+            $this->providersInitialized = true;
         }
 
         return $this->providers;
@@ -220,27 +239,18 @@ class Manager extends Plugin
     }
 
     /**
-     * Find all available provider classes
+     * Load all available provider classes
      *
-     * @return string[];
+     * @return Provider[];
      */
-    protected function getProviderClasses()
+    protected function loadProviders()
     {
-        // FIXME this relies on naming alone, we might want to use an action for registering
-        $plugins = plugin_list('helper');
-        $plugins = array_filter($plugins, function ($plugin) {
-            return $plugin !== 'twofactor' && substr($plugin, 0, 9) === 'twofactor';
-        });
-
-        $classes = [];
-        foreach ($plugins as $plugin) {
-            $class = 'helper_plugin_' . $plugin;
-            if (is_a($class, Provider::class, true)) {
-                $classes[$plugin] = $class;
-            }
-        }
-
-        return $classes;
+        /** @var Provider[] providers */
+        $this->providers = [];
+        $event = new Event('PLUGIN_TWOFACTOR_PROVIDER_REGISTER', $this->providers);
+        $event->advise_before(false);
+        $event->advise_after();
+        return $this->providers;
     }
 
 }

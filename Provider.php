@@ -2,14 +2,14 @@
 
 namespace dokuwiki\plugin\twofactor;
 
-use dokuwiki\Extension\Plugin;
+use dokuwiki\Extension\ActionPlugin;
 use dokuwiki\Form\Form;
 use dokuwiki\Utf8\PhpString;
 
 /**
  * Baseclass for all second factor providers
  */
-abstract class Provider extends Plugin
+abstract class Provider extends ActionPlugin
 {
     /** @var Settings */
     protected $settings;
@@ -17,15 +17,37 @@ abstract class Provider extends Plugin
     /** @var string */
     protected $providerID;
 
+    /** @inheritdoc */
+    public function register(\Doku_Event_Handler $controller)
+    {
+        $controller->register_hook(
+            'PLUGIN_TWOFACTOR_PROVIDER_REGISTER',
+            'AFTER',
+            $this,
+            'registerSelf',
+            null,
+            Manager::EVENT_PRIORITY - 1 // providers first
+        );
+    }
+
+    /**
+     * Register this class as a twofactor provider
+     *
+     * @param \Doku_Event $event
+     * @return void
+     */
+    public function registerSelf(\Doku_Event $event)
+    {
+        $event->data[$this->getProviderID()] = $this;
+    }
+
     /**
      * Initializes the provider for the given user
      * @param string $user Current user
-     * @throws \Exception
      */
-    public function __construct($user)
+    public function init($user)
     {
-        $this->providerID = substr(get_called_class(), strlen('helper_plugin_'));
-        $this->settings = new Settings($this->providerID, $user);
+        $this->settings = new Settings($this->getProviderID(), $user);
     }
 
     // region Introspection methods
@@ -37,6 +59,10 @@ abstract class Provider extends Plugin
      */
     public function getProviderID()
     {
+        if (!$this->providerID) {
+            $this->providerID = $this->getPluginName();
+        }
+
         return $this->providerID;
     }
 

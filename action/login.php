@@ -12,24 +12,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 {
     const TWOFACTOR_COOKIE = '2FA' . DOKU_COOKIE;
 
-    /** @var Manager */
-    protected $manager;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        $this->manager = Manager::getInstance();
-    }
-
     /**
      * Registers the event handlers.
      */
     public function register(Doku_Event_Handler $controller)
     {
-        if (!(Manager::getInstance())->isReady()) return;
-
         // check 2fa requirements and either move to profile or login handling
         $controller->register_hook(
             'ACTION_ACT_PREPROCESS',
@@ -37,7 +24,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $this,
             'handleActionPreProcess',
             null,
-            -999999
+            Manager::EVENT_PRIORITY
         );
 
         // display login form
@@ -58,11 +45,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     public function handleActionPreProcess(Doku_Event $event)
     {
-        try {
-            $this->manager->getUser();
-        } catch (\Exception $ignored) {
-            return;
-        }
+        $manager = Manager::getInstance();
+        if (!$manager->isReady()) return;
 
         global $INPUT;
 
@@ -87,7 +71,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             return;
         }
 
-        if (count($this->manager->getUserProviders())) {
+        if (count($manager->getUserProviders())) {
             // user has already 2fa set up - they need to authenticate before anything else
             $event->data = 'twofactor_login';
             $event->preventDefault();
@@ -95,7 +79,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             return;
         }
 
-        if ($this->manager->isRequired()) {
+        if ($manager->isRequired()) {
             // 2fa is required - they need to set it up now
             // this will be handled by action/profile.php
             $event->data = 'twofactor_profile';
@@ -112,6 +96,9 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     public function handleLoginDisplay(Doku_Event $event)
     {
         if ($event->data !== 'twofactor_login') return;
+        $manager = Manager::getInstance();
+        if (!$manager->isReady()) return;
+
         $event->preventDefault();
         $event->stopPropagation();
 
@@ -119,12 +106,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         global $ID;
 
         $providerID = $INPUT->str('2fa_provider');
-        $providers = $this->manager->getUserProviders();
-        if (isset($providers[$providerID])) {
-            $provider = $providers[$providerID];
-        } else {
-            $provider = $this->manager->getUserDefaultProvider();
-        }
+        $providers = $manager->getUserProviders();
+        $provider = $providers[$providerID] ?? $manager->getUserDefaultProvider();
         // remove current provider from list
         unset($providers[$provider->getProviderID()]);
 
@@ -139,7 +122,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $form->addTextInput('2fa_code', 'Your Code')->val('');
             $form->addCheckbox('sticky', 'Remember this browser'); // reuse same name as login
             $form->addButton('2fa', 'Submit')->attr('type', 'submit');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             msg(hsc($e->getMessage()), -1); // FIXME better handling
         }
         $form->addFieldsetClose();
@@ -171,10 +154,10 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         list($providerID, $hash,) = $data;
 
         try {
-            $provider = $this->manager->getUserProvider($providerID);
+            $provider = (Manager::getInstance())->getUserProvider($providerID);
             if ($this->cookieHash($provider) !== $hash) return false;
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $ignored) {
             return false;
         }
     }
@@ -191,7 +174,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
 
         if (!$code) return false;
         if (!$providerID) return false;
-        $provider = $this->manager->getUserProvider($providerID);
+        $provider = (Manager::getInstance())->getUserProvider($providerID);
         $ok = $provider->checkCode($code);
         if (!$ok) {
             msg('code was wrong', -1);
@@ -218,7 +201,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     {
         return sha1(join("\n", [
             $provider->getProviderID(),
-            $this->manager->getUser(),
+            (Manager::getInstance())->getUser(),
             $provider->getSecret(),
             auth_browseruid(),
             auth_cookiesalt(false, true),
