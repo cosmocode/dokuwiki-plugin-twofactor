@@ -183,9 +183,10 @@ class action_plugin_twofactor_profile extends ActionPlugin
             $form = new Form(['method' => 'POST']);
             $form->addFieldsetOpen($this->getLang('defaultprovider'));
             foreach ($userproviders as $provider) {
-                $form->addRadioButton('provider', $provider->getLabel())
-                     ->val($provider->getProviderID())
-                     ->attr('checked', $provider->getProviderID() === $default->getProviderID());
+                $el = $form->addRadioButton('provider', $provider->getLabel())->val($provider->getProviderID());
+                if ($provider->getProviderID() === $default->getProviderID()) {
+                    $el->attr('checked', 'checked');
+                }
             }
             $form->addButton('2fa_default', $lang['btn_save'])->attr('submit');
             $form->addFieldsetClose();

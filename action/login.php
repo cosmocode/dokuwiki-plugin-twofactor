@@ -147,7 +147,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
                     'do' => 'twofactor_login',
                     '2fa_provider' => $prov->getProviderID(),
                 ]);
-                $form->addHTML('< href="' . $url . '">' . hsc($prov->getLabel()) . '</a>');
+                $form->addHTML('<a href="' . $url . '">' . hsc($prov->getLabel()) . '</a>');
             }
             $form->addFieldsetClose();
         }
