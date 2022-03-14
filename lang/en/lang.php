@@ -12,6 +12,8 @@ $lang['verify_password'] = "Confirm your password";
 $lang['btn_quit'] = "Quit";
 $lang['btn_return'] = "Return to content";
 
+$lang['js']['reset_confirm'] = 'Do you really want to reset the two factor setup of this user?';
+
 # Messages displayed by menu
 $lang['updated'] = "Two factor configuration updated.";
 $lang['not_configured_notice'] = "You have enabled two factor authentication, but no providers are properly configured. Please complete the configuration of at least one provider or disable two factor authentication.";
