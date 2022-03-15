@@ -76,11 +76,12 @@ class action_plugin_twofactor_profile extends ActionPlugin
         }
 
         if (strtolower($INPUT->server->str('REQUEST_METHOD')) == 'post') {
-            $this->handleProfile();
-            // we might have changed something important, make sure the whole workflow restarts
-            send_redirect(wl($ID, ['do' => 'twofactor_profile'], true, '&'));
-        }
+            if ($this->handleProfile()) {
+                // we might have changed something important, make sure the whole workflow restarts
+                send_redirect(wl($ID, ['do' => 'twofactor_profile'], true, '&'));
+            }
 
+        }
     }
 
     /**
@@ -94,43 +95,61 @@ class action_plugin_twofactor_profile extends ActionPlugin
         if (!(Manager::getInstance())->isReady()) return;
         $event->preventDefault();
         $event->stopPropagation();
+        global $INPUT;
 
         echo '<div class="plugin_twofactor_profile">';
         echo $this->locale_xhtml('profile');
-        if ($this->printOptOutForm()) return;
-        $this->printDefaultProviderForm();
-        $this->printProviderForms();
-        echo '</div>';
 
+        if ($INPUT->has('twofactor_setup')) {
+            $this->printProviderSetup();
+        } else {
+            if (!$this->printOptOutForm()) {
+                $this->printConfiguredProviders();
+
+                $this->printProviderSetupSelect();
+            }
+        }
+        echo '</div>';
     }
 
     /**
      * Handle POSTs for provider forms
+     *
+     * @return bool should a redirect be made?
      */
     protected function handleProfile()
     {
         global $INPUT;
-        if (!checkSecurityToken()) return;
+        if (!checkSecurityToken()) return true;
         $manager = Manager::getInstance();
 
-        if ($INPUT->has('2fa_optout') && $this->getConf('optinout') === 'optout') {
+        if ($INPUT->has('twofactor_optout') && $this->getConf('optinout') === 'optout') {
             $manager->userOptOutState($INPUT->bool('optout'));
-            return;
+            return true;
         }
 
-        if (!$INPUT->has('provider')) return;
+        if (!$INPUT->has('provider')) return true;
         $providers = $manager->getAllProviders();
-        if (!isset($providers[$INPUT->str('provider')])) return;
+        if (!isset($providers[$INPUT->str('provider')])) return true;
         $provider = $providers[$INPUT->str('provider')];
+
+        if ($INPUT->has('twofactor_delete')) {
+            $provider->reset();
+            $manager->getUserDefaultProvider(); // resets the default to the next available
+            return true;
+        }
+
+        if ($INPUT->has('twofactor_default')) {
+            $manager->setUserDefaultProvider($provider);
+            return true;
+        }
 
         if (!$provider->isConfigured()) {
             $provider->handleProfileForm();
-        } elseif ($INPUT->has('2fa_delete')) {
-            $provider->reset();
-            $manager->getUserDefaultProvider(); // resets the default to the next available
-        } elseif ($INPUT->has('2fa_default')) {
-            $manager->setUserDefaultProvider($provider);
+            return $provider->isConfigured(); // redirect only if configuration finished
         }
+
+        return true;
     }
 
     /**
@@ -154,7 +173,7 @@ class action_plugin_twofactor_profile extends ActionPlugin
             if ($manager->userOptOutState()) {
                 $cb->attr('checked', 'checked');
             }
-            $form->addButton('2fa_optout', $this->getLang('btn_confirm'));
+            $form->addButton('twofactor_optout', $this->getLang('btn_confirm'));
             echo $form->toHTML();
 
             // when user opted out, don't show the rest of the form
@@ -172,63 +191,96 @@ class action_plugin_twofactor_profile extends ActionPlugin
      *
      * @return void
      */
-    protected function printDefaultProviderForm()
+    protected function printConfiguredProviders()
     {
-        global $lang;
         $manager = Manager::getInstance();
 
         $userproviders = $manager->getUserProviders();
         $default = $manager->getUserDefaultProvider();
-        if (count($userproviders)) {
-            $form = new Form(['method' => 'POST']);
-            $form->addFieldsetOpen($this->getLang('defaultprovider'));
-            foreach ($userproviders as $provider) {
-                $el = $form->addRadioButton('provider', $provider->getLabel())->val($provider->getProviderID());
-                if ($provider->getProviderID() === $default->getProviderID()) {
-                    $el->attr('checked', 'checked');
-                }
+        if (!$userproviders) return;
+
+        $form = new Form(['method' => 'POST']);
+        $form->addFieldsetOpen($this->getLang('providers'));
+        foreach ($userproviders as $provider) {
+            $el = $form->addRadioButton('provider', $provider->getLabel())->val($provider->getProviderID());
+            if ($provider->getProviderID() === $default->getProviderID()) {
+                $el->attr('checked', 'checked');
+                $el->getLabel()->val($provider->getLabel() . ' ' . $this->getLang('default'));
             }
-            $form->addButton('2fa_default', $lang['btn_save'])->attr('submit');
-            $form->addFieldsetClose();
-            echo $form->toHTML();
         }
+
+        $form->addTagOpen('div')->addClass('buttons');
+        $form->addButton('twofactor_default', $this->getLang('btn_default'))->attr('submit');
+        $form->addButton('twofactor_delete', $this->getLang('btn_remove'))
+             ->addClass('twofactor_delconfirm')->attr('submit');
+        $form->addTagClose('div');
+
+        $form->addFieldsetClose();
+        echo $form->toHTML();
     }
 
     /**
-     * Prints a form for each available provider to configure
+     * List providers available for adding
      *
      * @return void
      */
-    protected function printProviderForms()
+    protected function printProviderSetupSelect()
+    {
+        $manager = Manager::getInstance();
+        $available = $manager->getUserProviders(false);
+        if (!$available) return;
+
+        $options = [];
+        foreach ($available as $provider) {
+            $options[$provider->getProviderID()] = $provider->getLabel();
+        }
+
+        $form = new Form(['method' => 'post']);
+        $form->setHiddenField('do', 'twofactor_profile');
+        $form->setHiddenField('init', '1');
+        $form->addFieldsetOpen($this->getLang('newprovider'));
+        $form->addDropdown('provider', $options, $this->getLang('provider'));
+
+        $form->addTagOpen('div')->addClass('buttons');
+        $form->addButton('twofactor_setup', $this->getLang('btn_setup'))->attr('type', 'submit');
+        $form->addTagClose('div');
+
+        $form->addFieldsetClose();
+        echo $form->toHTML();
+    }
+
+    /**
+     * Display the setup form for a provider
+     *
+     * @return void
+     */
+    protected function printProviderSetup()
     {
         global $lang;
-        $manager = Manager::getInstance();
+        global $INPUT;
 
-        echo '<section class="providers">';
-        echo '<h2>' . $this->getLang('providers') . '</h2>';
+        $providerID = $INPUT->str('provider');
+        $providers = (Manager::getInstance())->getUserProviders(false);
+        if (!isset($providers[$providerID])) return;
+        $provider = $providers[$providerID];
 
-        echo '<div>';
-        $providers = $manager->getAllProviders();
-        foreach ($providers as $provider) {
-            $form = new dokuwiki\Form\Form(['method' => 'POST', 'class' => 'provider-' . $provider->getProviderID()]);
-            $form->setHiddenField('do', 'twofactor_profile');
-            $form->setHiddenField('provider', $provider->getProviderID());
-            $form->addFieldsetOpen($provider->getLabel());
-            $provider->renderProfileForm($form);
-            if (!$provider->isConfigured()) {
-                $form->addButton('2fa_submit', $lang['btn_save'])->attr('type', 'submit');
-            } else {
-                $form->addButton('2fa_delete', $lang['btn_delete'])
-                     ->addClass('twofactor_delconfirm')
-                     ->attr('type', 'submit');
-            }
-            $form->addFieldsetClose();
-            echo $form->toHTML();
-        }
-        echo '</div>';
+        $form = new Form(['method' => 'POST', 'class' => 'provider-' . $providerID]);
+        $form->setHiddenField('do', 'twofactor_profile');
+        $form->setHiddenField('twofactor_setup', '1');
+        $form->setHiddenField('provider', $provider->getProviderID());
 
-        echo '</section>';
+        $form->addFieldsetOpen($provider->getLabel());
+        $provider->renderProfileForm($form);
+
+        $form->addTagOpen('div')->addClass('buttons');
+        $form->addButton('twofactor_submit', $this->getLang('btn_confirm'))->attr('type', 'submit');
+        $form->addButton('twofactor_delete', $lang['btn_cancel'])->attr('type', 'submit');
+        $form->addTagClose('div');
+
+        $form->addFieldsetClose();
+        echo $form->toHTML();
     }
+
 }
 
 

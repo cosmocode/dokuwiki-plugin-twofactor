@@ -178,13 +178,14 @@ class Manager extends Plugin
     /**
      * Get all providers that have been already set up by the user
      *
+     * @param bool $configured when set to false, all providers NOT configured are returned
      * @return Provider[]
      */
-    public function getUserProviders()
+    public function getUserProviders($configured = true)
     {
         $list = $this->getAllProviders();
-        $list = array_filter($list, function ($provider) {
-            return $provider->isConfigured();
+        $list = array_filter($list, function ($provider) use ($configured) {
+            return $configured ? $provider->isConfigured() : !$provider->isConfigured();
         });
 
         return $list;

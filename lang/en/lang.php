@@ -1,10 +1,15 @@
 <?php
 $lang['btn_twofactor_profile'] = 'Two Factor Settings';
 
-$lang['providers'] = 'Provider Configuration';
-$lang['defaultprovider'] = 'Default Provider';
+$lang['providers'] = 'Your configured Two Factor Providers';
+$lang['default'] = '(Default)';
 $lang['optout'] = 'I don\'t want to use the more secure two-factor authentication.';
+$lang['newprovider'] = 'Add Two Factor Provider';
+$lang['provider'] = 'Provider';
 $lang['btn_confirm'] = 'Confirm';
+$lang['btn_default'] = 'Make Default Provider';
+$lang['btn_remove'] = 'Remove Provider Setup';
+$lang['btn_setup'] = 'Setup';
 
 $lang['codefail'] = 'The entered code was incorrect or expired';
 

@@ -1,7 +1,21 @@
-.plugin_twofactor_profile {
+.dokuwiki .plugin_twofactor_profile {
+
+    form {
+        margin-top: 1em;
+        display: block;
+
+        label {
+            display: block;
+        }
+
+        .buttons {
+            margin-top: 1em;
+            display: flex;
+            justify-content: space-around;
+        }
+    }
 
     section {
-        margin-top: 1em;
     }
 
     section.state {
@@ -11,19 +25,6 @@
         margin: 1em;
     }
 
-    section.providers {
-
-        > div {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 3em;
-
-            fieldset {
-                height: 100%;
-            }
-        }
-    }
 }
 
 .plugin_twofactor_admin {
