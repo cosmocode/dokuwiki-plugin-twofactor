@@ -162,17 +162,29 @@ abstract class Provider extends ActionPlugin
      * Check the given code
      *
      * @param string $code
-     * @param int $tolerance
      * @return bool
      * @throws \Exception when no code can be created
      */
-    public function checkCode($code, $tolerance = 2)
+    public function checkCode($code)
     {
         $secret = $this->settings->get('secret');
         if (!$secret) throw new \Exception('No secret for provider ' . $this->getProviderID());
 
         $ga = new GoogleAuthenticator();
-        return $ga->verifyCode($secret, $code, $tolerance);
+        return $ga->verifyCode($secret, $code, $this->getTolerance());
+    }
+
+    /**
+     * The tolerance to be used when verifying codes
+     *
+     * This is the allowed time drift in 30 second units (8 means 4 minutes before or after)
+     * Different providers may want to use different tolerances by overriding this method.
+     *
+     * @return int
+     */
+    public function getTolerance()
+    {
+        return 2;
     }
 
     /**
