@@ -62,14 +62,14 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
      */
     public function html()
     {
-        $users = $this->getUserData($this->filter);
-        $usercount = count($users);
-        $users = $this->applyPagination($users, $this->start, $this->pagesize);
-
         echo $this->locale_xhtml('admin');
         if (!$this->manager->isReady()) {
             return true;
         }
+
+        $users = $this->getUserData($this->filter);
+        $usercount = count($users);
+        $users = $this->applyPagination($users, $this->start, $this->pagesize);
 
         $form = new Form(['method' => 'POST', 'class' => 'plugin_twofactor_admin']);
         $form->setHiddenField('do', 'admin');
