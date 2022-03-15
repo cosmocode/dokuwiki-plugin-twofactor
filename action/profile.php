@@ -210,7 +210,7 @@ class action_plugin_twofactor_profile extends ActionPlugin
         echo '<div>';
         $providers = $manager->getAllProviders();
         foreach ($providers as $provider) {
-            $form = new dokuwiki\Form\Form(['method' => 'POST']);
+            $form = new dokuwiki\Form\Form(['method' => 'POST', 'class' => 'provider-' . $provider->getProviderID()]);
             $form->setHiddenField('do', 'twofactor_profile');
             $form->setHiddenField('provider', $provider->getProviderID());
             $form->addFieldsetOpen($provider->getLabel());

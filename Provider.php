@@ -162,16 +162,21 @@ abstract class Provider extends ActionPlugin
      * Check the given code
      *
      * @param string $code
+     * @param bool $usermessage should a message about the failed code be shown to the user?
      * @return bool
-     * @throws \Exception when no code can be created
+     * @throws \RuntimeException when no code can be created
      */
-    public function checkCode($code)
+    public function checkCode($code, $usermessage = true)
     {
         $secret = $this->settings->get('secret');
-        if (!$secret) throw new \Exception('No secret for provider ' . $this->getProviderID());
+        if (!$secret) throw new \RuntimeException('No secret for provider ' . $this->getProviderID());
 
         $ga = new GoogleAuthenticator();
-        return $ga->verifyCode($secret, $code, $this->getTolerance());
+        $ok = $ga->verifyCode($secret, $code, $this->getTolerance());
+        if (!$ok && $usermessage) {
+            msg((Manager::getInstance())->getLang('codefail'), -1);
+        }
+        return $ok;
     }
 
     /**

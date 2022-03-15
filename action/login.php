@@ -222,10 +222,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if (!$providerID) return false;
         $provider = (Manager::getInstance())->getUserProvider($providerID);
         $ok = $provider->checkCode($code);
-        if (!$ok) {
-            msg('code was wrong', -1);
-            return false;
-        }
+        if (!$ok) return false;
 
         // store cookie
         $hash = $this->cookieHash($provider);
