@@ -145,14 +145,19 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $form->addFieldsetClose();
 
         if (count($providers)) {
-            $form->addFieldsetOpen('Alternative methods');
+            $form->addFieldsetOpen('Alternative methods')->addClass('list');
+            $form->addTagOpen('ul');
             foreach ($providers as $prov) {
                 $url = wl($ID, [
                     'do' => 'twofactor_login',
                     '2fa_provider' => $prov->getProviderID(),
                 ]);
-                $form->addHTML('<a href="' . $url . '">' . hsc($prov->getLabel()) . '</a>');
+                $form->addHTML(
+                    '<li><div class="li"><a href="' . $url . '">' . hsc($prov->getLabel()) . '</a></div></li>'
+                );
             }
+
+            $form->addTagClose('ul');
             $form->addFieldsetClose();
         }
 
