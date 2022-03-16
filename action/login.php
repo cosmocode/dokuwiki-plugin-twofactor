@@ -1,6 +1,7 @@
 <?php
 
 use dokuwiki\plugin\twofactor\Manager;
+use dokuwiki\plugin\twofactor\OtpField;
 use dokuwiki\plugin\twofactor\Provider;
 
 /**
@@ -134,10 +135,10 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $code = $provider->generateCode();
             $info = $provider->transmitMessage($code);
             $form->addHTML('<p>' . hsc($info) . '</p>');
-            $form->addTextInput('2fa_code', 'Your Code')->val('');
-            $form->addCheckbox('sticky', 'Remember this browser'); // reuse same name as login
+            $form->addElement(new OtpField('2fa_code'));
+            $form->addCheckbox('sticky', 'Remember this browser'); // FIXME localize
             $form->addTagOpen('div')->addClass('buttons');
-            $form->addButton('2fa', 'Submit')->attr('type', 'submit');
+            $form->addButton('2fa', $this->getLang('btn_confirm'))->attr('type', 'submit');
             $form->addTagClose('div');
         } catch (Exception $e) {
             msg(hsc($e->getMessage()), -1); // FIXME better handling

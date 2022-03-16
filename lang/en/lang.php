@@ -10,6 +10,7 @@ $lang['btn_confirm'] = 'Confirm';
 $lang['btn_default'] = 'Make Default Mechanism';
 $lang['btn_remove'] = 'Revoke Selected Mechanism';
 $lang['btn_setup'] = 'Setup';
+$lang['otp'] = 'Your Login Code';
 
 $lang['codefail'] = 'The entered code was incorrect or expired';
 
