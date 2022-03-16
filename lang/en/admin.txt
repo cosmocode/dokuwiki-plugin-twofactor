@@ -1,5 +1,5 @@
-====== Two Factor Admin ======
+====== Two-Factor Admin ======
 
-The table below lists all users that have at least one second factor provider set up for use. You can use this tool to reset the user's setup when they lost access to their second factor mechanism.
+The table below lists all users that have at least one second factor mechanism set up for use. You can use this tool to reset the user's setup when they lost access to their second factor mechanism.
 
-Note: this will reset all two factor providers for the user! Depending on your setup, the user will may be required to configure a new two facotr mechanism on their next login.
+Note: this will reset **all** two-factor mechanisms for the user! Depending on your setup, the user may be required to configure a new two factor mechanism on their next login.

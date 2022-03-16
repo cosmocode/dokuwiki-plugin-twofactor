@@ -1,1 +1,1 @@
-This wiki requires the use of two-factor authentication. You always need to have at least one of the below providers configured before you can use the wiki.
+This wiki requires the use of two-factor authentication. You always need to have at least one of the mechanims available below configured before you can use the wiki.
