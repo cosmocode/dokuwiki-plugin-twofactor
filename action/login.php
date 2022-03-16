@@ -62,7 +62,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             if ($this->verify(
                 $INPUT->str('2fa_code'),
                 $INPUT->str('2fa_provider'),
-                $INPUT->bool('sticky')
+                $this->isSticky()
             )) {
                 $event->data = 'show';
                 return;
@@ -136,7 +136,6 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $info = $provider->transmitMessage($code);
             $form->addHTML('<p>' . hsc($info) . '</p>');
             $form->addElement(new OtpField('2fa_code'));
-            $form->addCheckbox('sticky', 'Remember this browser'); // FIXME localize
             $form->addTagOpen('div')->addClass('buttons');
             $form->addButton('2fa', $this->getLang('btn_confirm'))->attr('type', 'submit');
             $form->addTagClose('div');
@@ -206,6 +205,20 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     }
 
     /**
+     * Get sticky value from standard cookie
+     *
+     * @return bool
+     */
+    protected function isSticky()
+    {
+        if (!isset($_COOKIE[DOKU_COOKIE])) {
+            return false;
+        }
+        list(, $sticky,) = explode('|', $_COOKIE[DOKU_COOKIE], 3);
+        return (bool)$sticky;
+    }
+
+    /**
      * Deletes the cookie
      *
      * @return void
@@ -239,7 +252,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $hash = $this->cookieHash($provider);
         $data = base64_encode(serialize([$providerID, $hash, time()]));
         $cookieDir = empty($conf['cookiedir']) ? DOKU_REL : $conf['cookiedir'];
-        $time = $sticky ? (time() + 60 * 60 * 24 * 365) : 0; //one year
+        $time = $sticky ? (time() + 60 * 60 * 24 * 30 * 3) : 0; //three months on sticky login
         setcookie(self::TWOFACTOR_COOKIE, $data, $time, $cookieDir, '', ($conf['securecookie'] && is_ssl()), true);
 
         return true;
