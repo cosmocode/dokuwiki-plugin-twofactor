@@ -1,11 +1,17 @@
-.dokuwiki .plugin_twofactor_profile {
-
+.dokuwiki .plugin_twofactor_profile,
+.dokuwiki .plugin_twofactor_login {
     form {
         margin-top: 1em;
         display: block;
+        clear: both;
 
         label {
             display: block;
+            margin-bottom: 0.5em;
+        }
+
+        fieldset {
+            margin-bottom: 1em;
         }
 
         .buttons {
@@ -14,10 +20,18 @@
             justify-content: space-around;
         }
     }
+}
 
-    section {
+.plugin_twofactor_login {
+    svg {
+        width: 8rem;
+        height: 8rem;
+        fill: @ini_border;
+        float: right;
     }
+}
 
+.plugin_twofactor_profile {
     section.state {
         background-color: @ini_background_neu;
         color: @ini_text_neu;

@@ -123,6 +123,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         // remove current provider from list
         unset($providers[$provider->getProviderID()]);
 
+        echo '<div class="plugin_twofactor_login">';
+        echo inlineSVG(__DIR__ . '/../admin.svg');
         echo $this->locale_xhtml('login');
         $form = new dokuwiki\Form\Form(['method' => 'POST']);
         $form->setHiddenField('do', 'twofactor_login');
@@ -134,7 +136,9 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $form->addHTML('<p>' . hsc($info) . '</p>');
             $form->addTextInput('2fa_code', 'Your Code')->val('');
             $form->addCheckbox('sticky', 'Remember this browser'); // reuse same name as login
+            $form->addTagOpen('div')->addClass('buttons');
             $form->addButton('2fa', 'Submit')->attr('type', 'submit');
+            $form->addTagClose('div');
         } catch (Exception $e) {
             msg(hsc($e->getMessage()), -1); // FIXME better handling
         }
@@ -153,6 +157,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         }
 
         echo $form->toHTML();
+        echo '</div>';
     }
 
     /**
