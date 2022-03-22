@@ -11,13 +11,13 @@ use dokuwiki\plugin\twofactor\Settings;
  */
 class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
 {
-    protected $userList = array();     // list of users with attributes
-    protected $filter = array();   // user selection filter(s)
-    protected $start = 0;          // index of first user to be displayed
-    protected $last = 0;           // index of the last user to be displayed
-    protected $pagesize = 20;      // number of users to list on one page
-    protected $disabled = '';      // if disabled set to explanatory string
-
+    /** @var array currently active filters */
+    protected $filter = [];
+    /** @var int index of first user to be displayed */
+    protected $start = 0;
+    /** @var int number of users to list on one page */
+    protected $pagesize = 20;
+    /** @var Manager */
     protected $manager;
 
     /**
@@ -52,11 +52,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         }
     }
 
-    /**
-     * Output appropriate html
-     *
-     * @return bool
-     */
+    /** @inheritdoc */
     public function html()
     {
         echo $this->locale_xhtml('admin');
