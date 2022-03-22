@@ -239,7 +239,8 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
             $userdata['user'] = $user;
             if ($hasFilter) {
                 foreach ($filter as $key => $value) {
-                    if ($value && strstr($userdata[$key], $value)) {
+                    $q = preg_quote($value, '/');
+                    if ($value && preg_match("/$q/iu", $userdata[$key])) {
                         $filtered[$user] = $userdata;
                         continue 2;
                     }
