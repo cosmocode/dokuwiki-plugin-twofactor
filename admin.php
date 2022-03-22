@@ -2,6 +2,7 @@
 
 use dokuwiki\Form\Form;
 use dokuwiki\plugin\twofactor\Manager;
+use dokuwiki\plugin\twofactor\Settings;
 
 /**
  *  Twofactor Manager
@@ -17,9 +18,6 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     protected $pagesize = 20;      // number of users to list on one page
     protected $disabled = '';      // if disabled set to explanatory string
 
-    /** @var helper_plugin_attribute */
-    protected $attribute;
-
     protected $manager;
 
     /**
@@ -29,7 +27,6 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
     {
         $this->manager = Manager::getInstance();
         if (!$this->manager->isReady()) return;
-        $this->attribute = plugin_load('helper', 'attribute');
 
         global $INPUT;
 
@@ -49,9 +46,9 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
                 return;
             }
             foreach ($this->manager->getAllProviders() as $providerID => $provider) {
-                $this->attribute->purge($providerID, $userdel);
+                (new Settings($providerID, $userdel))->purge();
             }
-            $this->attribute->purge('twofactor', $userdel);
+            (new Settings('twofactor', $userdel))->purge();
         }
     }
 
@@ -219,7 +216,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
      */
     protected function getUserData($filter)
     {
-        $users = $this->attribute->enumerateUsers('twofactor');
+        $users = Settings::findUsers('twofactor');
         return $this->applyFilter($users, $filter);
     }
 

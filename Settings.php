@@ -33,6 +33,21 @@ class Settings
     }
 
     /**
+     * Return a list of users that have settings for the given module
+     *
+     * @param $module
+     * @return array|bool
+     */
+    static public function findUsers($module)
+    {
+        /** @var \helper_plugin_attribute $attribute */
+        $attribute = plugin_load('helper', 'attribute');
+        if ($attribute === null) throw new \RuntimeException('attribute plugin not found');
+
+        return $attribute->enumerateUsers($module);
+    }
+
+    /**
      * Check if a setting exists
      *
      * @param string $key Settings key
