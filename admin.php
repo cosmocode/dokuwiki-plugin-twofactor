@@ -50,6 +50,11 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
             }
             (new Settings('twofactor', $userdel))->purge();
         }
+
+        // when a search is initiated, roll back to first page
+        if ($INPUT->has('search')) {
+            $this->start = 0;
+        }
     }
 
     /** @inheritdoc */
@@ -128,7 +133,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         $form->addTextInput('filter[mail]');
         $form->addTagClose('th');
         $form->addTagOpen('th');
-        $form->addButton('', $this->getLang('search'))->attr('type', 'submit');
+        $form->addButton('search', $this->getLang('search'))->attr('type', 'submit');
         $form->addTagClose('th');
         $form->addTagClose('tr');
 
