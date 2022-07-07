@@ -178,6 +178,8 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if (basename($INPUT->server->str('SCRIPT_NAME')) == DOKU_SCRIPT) return;
         if ($this->isAuthed()) return;
 
+        if ($this->getConf('optinout') !== 'mandatory' && empty(Manager::getInstance()->getUserProviders())) return;
+
         // temporarily remove user info from environment
         $INPUT->server->remove('REMOTE_USER');
         unset($_SESSION[DOKU_COOKIE]['auth']);
