@@ -42,7 +42,7 @@ class admin_plugin_twofactor extends DokuWiki_Admin_Plugin
         if ($INPUT->has('reset') && checkSecurityToken()) {
             $userdel = $INPUT->extract('reset')->str('reset');
             if ($userdel == $INPUT->server->str('REMOTE_USER')) {
-                msg($this->lang['reset_not_self'], -1);
+                msg($this->getLang('reset_not_self'), -1);
                 return;
             }
             foreach ($this->manager->getAllProviders() as $providerID => $provider) {

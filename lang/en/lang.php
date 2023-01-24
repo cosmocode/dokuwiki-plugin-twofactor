@@ -20,6 +20,7 @@ $lang['user_name']   = 'Real Name';
 $lang['user_mail']   = 'Email';
 $lang['action'] = 'Action';
 $lang['reset'] = 'Reset';
+$lang['reset_not_self'] = 'You can\'t reset your own account';
 $lang['search']      = 'Search';
 $lang['start']  = 'start';
 $lang['prev']   = 'previous';
