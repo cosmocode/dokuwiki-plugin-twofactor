@@ -272,7 +272,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $provider->getProviderID(),
             (Manager::getInstance())->getUser(),
             $provider->getSecret(),
-            auth_browseruid(),
+            $this->getConf("useinternaluid") ? auth_browseruid() : $_SERVER['HTTP_USER_AGENT'],
             auth_cookiesalt(false, true),
         ]));
     }
