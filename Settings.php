@@ -27,6 +27,7 @@ class Settings
     {
         $this->attribute = plugin_load('helper', 'attribute');
         if ($this->attribute === null) throw new \RuntimeException('attribute plugin not found');
+        $this->attribute->setSecure(false);
 
         $this->providerID = $module;
         $this->user = $user;
@@ -45,6 +46,16 @@ class Settings
         if ($attribute === null) throw new \RuntimeException('attribute plugin not found');
 
         return $attribute->enumerateUsers($module);
+    }
+
+    /**
+     * Get the user these settings are for
+     *
+     * @return string
+     */
+    public function getUser()
+    {
+        return $this->user;
     }
 
     /**

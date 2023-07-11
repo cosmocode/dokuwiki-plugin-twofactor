@@ -52,6 +52,11 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     public function handleActionPreProcess(Doku_Event $event)
     {
+        if ($event->data === 'resendpwd') {
+            // this is completely handled in resendpwd.php
+            return;
+        }
+
         $manager = Manager::getInstance();
         if (!$manager->isReady()) return;
 
@@ -116,52 +121,12 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         $event->stopPropagation();
 
         global $INPUT;
-        global $ID;
-
         $providerID = $INPUT->str('2fa_provider');
-        $providers = $manager->getUserProviders();
-        $provider = $providers[$providerID] ?? $manager->getUserDefaultProvider();
-        // remove current provider from list
-        unset($providers[$provider->getProviderID()]);
 
         echo '<div class="plugin_twofactor_login">';
         echo inlineSVG(__DIR__ . '/../admin.svg');
         echo $this->locale_xhtml('login');
-        $form = new dokuwiki\Form\Form(['method' => 'POST']);
-        $form->setHiddenField('do', 'twofactor_login');
-        $form->setHiddenField('2fa_provider', $provider->getProviderID());
-        $form->addFieldsetOpen($provider->getLabel());
-        try {
-            $code = $provider->generateCode();
-            $info = $provider->transmitMessage($code);
-            $form->addHTML('<p>' . hsc($info) . '</p>');
-            $form->addElement(new OtpField('2fa_code'));
-            $form->addTagOpen('div')->addClass('buttons');
-            $form->addButton('2fa', $this->getLang('btn_confirm'))->attr('type', 'submit');
-            $form->addTagClose('div');
-        } catch (Exception $e) {
-            msg(hsc($e->getMessage()), -1); // FIXME better handling
-        }
-        $form->addFieldsetClose();
-
-        if (count($providers)) {
-            $form->addFieldsetOpen('Alternative methods')->addClass('list');
-            $form->addTagOpen('ul');
-            foreach ($providers as $prov) {
-                $url = wl($ID, [
-                    'do' => 'twofactor_login',
-                    '2fa_provider' => $prov->getProviderID(),
-                ]);
-                $form->addHTML(
-                    '<li><div class="li"><a href="' . $url . '">' . hsc($prov->getLabel()) . '</a></div></li>'
-                );
-            }
-
-            $form->addTagClose('ul');
-            $form->addFieldsetClose();
-        }
-
-        echo $form->toHTML();
+        echo $manager->getCodeForm($providerID)->toHTML();
         echo '</div>';
     }
 
@@ -244,11 +209,10 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     {
         global $conf;
 
-        if (!$code) return false;
-        if (!$providerID) return false;
+        $manager = Manager::getInstance();
+        if (!$manager->verifyCode($code, $providerID)) return false;
+
         $provider = (Manager::getInstance())->getUserProvider($providerID);
-        $ok = $provider->checkCode($code);
-        if (!$ok) return false;
 
         // store cookie
         $hash = $this->cookieHash($provider);

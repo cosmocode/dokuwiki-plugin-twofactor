@@ -1,0 +1,3 @@
+====== Two-Factor Confirmation ======
+
+Please provide your second factor data below to reset your password.

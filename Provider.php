@@ -3,6 +3,7 @@
 namespace dokuwiki\plugin\twofactor;
 
 use dokuwiki\Extension\ActionPlugin;
+use dokuwiki\Extension\AuthPlugin;
 use dokuwiki\Form\Form;
 use dokuwiki\Utf8\PhpString;
 
@@ -51,6 +52,21 @@ abstract class Provider extends ActionPlugin
     }
 
     // region Introspection methods
+
+    /**
+     * The user data for the current user
+     * @return array (user=>'login', name=>'full name', mail=>'user@example.com', grps=>['group1', 'group2',...])
+     */
+    public function getUserData()
+    {
+        /** @var AuthPlugin $auth */
+        global $auth;
+        $user = $this->settings->getUser();
+        $userdata = $auth->getUserData($user);
+        if (!$userdata) throw new \RuntimeException('2fa: Failed to get user details from auth backend');
+        $userdata['user'] = $user;
+        return $userdata;
+    }
 
     /**
      * The ID of this provider

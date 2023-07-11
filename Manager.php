@@ -4,6 +4,7 @@ namespace dokuwiki\plugin\twofactor;
 
 use dokuwiki\Extension\Event;
 use dokuwiki\Extension\Plugin;
+use dokuwiki\Form\Form;
 
 /**
  * Manages the child plugins etc.
@@ -26,6 +27,9 @@ class Manager extends Plugin
 
     /** @var bool */
     protected $providersInitialized;
+
+    /** @var string */
+    protected $user;
 
     /**
      * Constructor
@@ -67,6 +71,14 @@ class Manager extends Plugin
             self::$instance = new Manager();
         }
         return self::$instance;
+    }
+
+    /**
+     * Destroy the singleton instance
+     */
+    public static function destroyInstance()
+    {
+        self::$instance = null;
     }
 
     /**
@@ -114,12 +126,28 @@ class Manager extends Plugin
      */
     public function getUser()
     {
-        global $INPUT;
-        $user = $INPUT->server->str('REMOTE_USER');
-        if (!$user) {
+        if ($this->user === null) {
+            global $INPUT;
+            $this->user = $INPUT->server->str('REMOTE_USER');
+        }
+
+        if (!$this->user) {
             throw new \RuntimeException('2fa user specifics used before user available');
         }
-        return $user;
+        return $this->user;
+    }
+
+    /**
+     * Set the current user
+     *
+     * This is only needed when running 2fa actions for a non-logged-in user (e.g. during password reset)
+     */
+    public function setUser($user)
+    {
+        if ($this->user) {
+            throw new \RuntimeException('2fa user already set, cannot be changed');
+        }
+        $this->user = $user;
     }
 
     /**
@@ -254,4 +282,67 @@ class Manager extends Plugin
         return $this->providers;
     }
 
+
+    /**
+     * Verify a given code
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function verifyCode($code, $providerID)
+    {
+        if (!$code) return false;
+        if (!$providerID) return false;
+        $provider = $this->getUserProvider($providerID);
+        $ok = $provider->checkCode($code);
+        if (!$ok) return false;
+
+        return true;
+    }
+
+    /**
+     * Get the form to enter a code for a given provider
+     *
+     * Calling this will generate a new code and transmit it.
+     *
+     * @param string $providerID
+     * @return Form
+     */
+    public function getCodeForm($providerID)
+    {
+        $providers = $this->getUserProviders();
+        $provider = $providers[$providerID] ?? $this->getUserDefaultProvider();
+        // remove current provider from list
+        unset($providers[$provider->getProviderID()]);
+
+        $form = new Form(['method' => 'POST']);
+        $form->setHiddenField('do', 'twofactor_login');
+        $form->setHiddenField('2fa_provider', $provider->getProviderID());
+
+        $form->addFieldsetOpen($provider->getLabel());
+        try {
+            $code = $provider->generateCode();
+            $info = $provider->transmitMessage($code);
+            $form->addHTML('<p>' . hsc($info) . '</p>');
+            $form->addElement(new OtpField('2fa_code'));
+            $form->addTagOpen('div')->addClass('buttons');
+            $form->addButton('2fa', $this->getLang('btn_confirm'))->attr('type', 'submit');
+            $form->addTagClose('div');
+        } catch (\Exception $e) {
+            msg(hsc($e->getMessage()), -1); // FIXME better handling
+        }
+        $form->addFieldsetClose();
+
+        if (count($providers)) {
+            $form->addFieldsetOpen('Alternative methods')->addClass('list');
+            foreach ($providers as $prov) {
+                $form->addButton('2fa_provider', $prov->getLabel())
+                    ->attr('type', 'submit')
+                    ->attr('value', $prov->getProviderID());
+            }
+            $form->addFieldsetClose();
+        }
+
+        return $form;
+    }
 }
