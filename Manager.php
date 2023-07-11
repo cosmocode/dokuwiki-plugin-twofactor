@@ -310,12 +310,21 @@ class Manager extends Plugin
      */
     public function getCodeForm($providerID)
     {
+        global $INPUT;
+
         $providers = $this->getUserProviders();
         $provider = $providers[$providerID] ?? $this->getUserDefaultProvider();
         // remove current provider from list
         unset($providers[$provider->getProviderID()]);
 
         $form = new Form(['method' => 'POST']);
+
+        // avoid triggering 2fa for non-document requests (like missing images that get rewritten as page)
+        if($INPUT->server->has('HTTP_SEC_FETCH_DEST') && $INPUT->server->str('HTTP_SEC_FETCH_DEST') !== 'document'){
+            $form->addHTML('<p>Not a document request. Not initiating two factor auth</p>');
+            return $form;
+        }
+
         $form->setHiddenField('do', 'twofactor_login');
         $form->setHiddenField('2fa_provider', $provider->getProviderID());
 
