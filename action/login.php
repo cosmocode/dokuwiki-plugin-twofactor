@@ -1,7 +1,6 @@
 <?php
 
 use dokuwiki\plugin\twofactor\Manager;
-use dokuwiki\plugin\twofactor\OtpField;
 use dokuwiki\plugin\twofactor\Provider;
 
 /**
@@ -157,6 +156,14 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
      */
     protected function isAuthed()
     {
+        // if we trust the IP, we don't need 2fa and consider the user authed automatically
+        if (
+            $this->getConf('trustedIPs') &&
+            preg_match('/' . $this->getConf('trustedIPs') . '/', clientIP(true))
+        ) {
+            return true;
+        }
+
         if (!isset($_COOKIE[self::TWOFACTOR_COOKIE])) return false;
         $data = unserialize(base64_decode($_COOKIE[self::TWOFACTOR_COOKIE]));
         if (!is_array($data)) return false;
