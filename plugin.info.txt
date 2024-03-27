@@ -1,7 +1,7 @@
 base   twofactor
 author Andreas Gohr, Michael Wilmes
 email  dokuwiki@cosmocode.de
-date   2024-02-21
+date   2024-03-27
 name   Two Factor Authentication - Core Plugin
 desc   Creates a two factor authentication mechanism
 url    https://www.dokuwiki.org/plugin:twofactor
