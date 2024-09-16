@@ -23,6 +23,7 @@ class OtpField extends InputElement
         $this->attr('autofocus', 'on');
         $this->attr('autocomplete', 'one-time-code');
         $this->attr('inputmode', 'numeric');
+        $this->attr('type', 'tel');
         $this->useInput(false);
     }
 
