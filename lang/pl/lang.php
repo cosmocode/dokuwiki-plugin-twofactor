@@ -9,7 +9,7 @@ $lang['provider'] = 'Mechanizm';
 $lang['btn_confirm'] = 'Potwierdź';
 $lang['btn_default'] = 'Ustaw jako mechanizm domyślny';
 $lang['btn_remove'] = 'Wyłącz zaznaczone mechanizmy';
-$lang['btn_setup'] = 'Konfiguracja';
+$lang['btn_setup'] = 'Ustaw';
 $lang['otp'] = 'Twój kod logowania';
 
 $lang['codefail'] = 'Podany kod jest błędny lub wygasł';
