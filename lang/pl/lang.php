@@ -8,7 +8,7 @@ $lang['newprovider'] = 'Dodaj mechanizm uwierzytelniania dwuskładnikowego';
 $lang['provider'] = 'Mechanizm';
 $lang['btn_confirm'] = 'Potwierdź';
 $lang['btn_default'] = 'Ustaw jako mechanizm domyślny';
-$lang['btn_remove'] = 'Wyłącz zaznaczone mechanizmy';
+$lang['btn_remove'] = 'Wyłącz zaznaczony mechanizm';
 $lang['btn_setup'] = 'Ustaw';
 $lang['otp'] = 'Twój kod logowania';
 
@@ -20,7 +20,7 @@ $lang['user_name']   = 'Imię i nazwisko';
 $lang['user_mail']   = 'E-mail';
 $lang['action'] = 'Akcja';
 $lang['reset'] = 'Reset';
-$lang['reset_not_self'] = 'Nie możesz zresetwoać własnego konta';
+$lang['reset_not_self'] = 'Nie możesz zresetować własnego konta';
 $lang['search']      = 'Szukaj';
 $lang['start']  = 'start';
 $lang['prev']   = 'poprzedni';
