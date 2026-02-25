@@ -1,5 +1,6 @@
 <?php
 
+use dokuwiki\JWT;
 use dokuwiki\plugin\twofactor\Manager;
 use dokuwiki\plugin\twofactor\Provider;
 
@@ -137,12 +138,18 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
     public function handleInitDone(Doku_Event $event)
     {
         global $INPUT;
+        $script = basename($INPUT->server->str('SCRIPT_NAME'));
 
         if (!(Manager::getInstance())->isReady()) return;
-        if (basename($INPUT->server->str('SCRIPT_NAME')) == DOKU_SCRIPT) return;
+        if ($script == DOKU_SCRIPT) return;
         if ($this->isAuthed()) return;
 
         if ($this->getConf('optinout') !== 'mandatory' && empty(Manager::getInstance()->getUserProviders())) return;
+
+        // allow API access without 2fa when using token auth
+        if(in_array($script, ['xmlrpc.php', 'jsonrpc.php']) && $this->getConf('allowTokenAuth')) {
+            if ($this->hasValidTokenAuth()) return;
+        }
 
         // temporarily remove user info from environment
         $INPUT->server->remove('REMOTE_USER');
@@ -246,5 +253,55 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
             $this->getConf("useinternaluid") ? auth_browseruid() : $_SERVER['HTTP_USER_AGENT'],
             auth_cookiesalt(false, true),
         ]));
+    }
+
+    /**
+     * Check if the user has a valid auth token. We might skip 2fa for them.
+     *
+     * This duplicates code from auth_tokenlogin() until DokuWiki has a proper mechanism to access the token
+     *
+     * @return bool
+     */
+    protected function hasValidTokenAuth()
+    {
+        $headers = [];
+
+        // try to get the headers from Apache
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (is_array($headers)) {
+                $headers = array_change_key_case($headers);
+            }
+        }
+
+        // get the headers from $_SERVER
+        if (!$headers) {
+            foreach ($_SERVER as $key => $value) {
+                if (substr($key, 0, 5) === 'HTTP_') {
+                    $headers[strtolower(substr($key, 5))] = $value;
+                }
+            }
+        }
+
+        // check authorization header
+        if (isset($headers['authorization'])) {
+            [$type, $token] = sexplode(' ', $headers['authorization'], 2);
+            if ($type !== 'Bearer') $token = ''; // not the token we want
+        }
+
+        // check x-dokuwiki-token header
+        if (isset($headers['x-dokuwiki-token'])) {
+            $token = $headers['x-dokuwiki-token'];
+        }
+
+        if (empty($token)) return false;
+
+        // check token
+        try {
+            JWT::validate($token);
+        } catch (Exception $e) {
+            return false;
+        }
+        return true;
     }
 }
