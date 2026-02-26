@@ -147,7 +147,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         if ($this->getConf('optinout') !== 'mandatory' && empty(Manager::getInstance()->getUserProviders())) return;
 
         // allow API access without 2fa when using token auth
-        if(in_array($script, ['xmlrpc.php', 'jsonrpc.php']) && $this->getConf('allowTokenAuth')) {
+        if(in_array($script, ['xmlrpc.php', 'jsonrpc.php']) || $this->getConf('allowTokenAuth')) {
             if ($this->hasValidTokenAuth()) return;
         }
 
