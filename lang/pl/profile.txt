@@ -1,0 +1,3 @@
+====== Ustawienia uwierzytelniania dwuskładnikowego ======
+
+W tym miejscu można ustawić drugi składnik uwierzytelniania. Dostępne opcje zależą od konfiguracji DokuWiki.

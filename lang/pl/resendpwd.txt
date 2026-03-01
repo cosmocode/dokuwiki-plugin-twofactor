@@ -1,0 +1,3 @@
+====== Uwierzytelnianie dwuskładnikowe ======
+
+Podaj dane z drugiego składnika uwierzytelniania w celu zmiany hasła. 
