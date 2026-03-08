@@ -1,0 +1,1 @@
+Te wiki wymaga użycia uwierzytelniania dwuskładnikowego. Aby móc z niego korzystać, należy zawsze skonfigurować co najmniej jeden z poniższych mechanizmów.

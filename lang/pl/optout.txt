@@ -1,0 +1,3 @@
+Ta wiki umożliwia korzystanie z uwierzytelniania dwuskładnikowego. Zaleca się korzystanie z tej funkcji poprzez skonfigurowanie jednego lub kilku poniższych mechanizmów.
+
+Jeśli jednak nie chcesz korzystać z tej opcji, możesz zrezygnować z niej poniżej. W każdej chwili możesz ponownie włączyć uwierzytelnianie dwuskładnikowe.

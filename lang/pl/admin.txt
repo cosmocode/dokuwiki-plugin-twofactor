@@ -1,0 +1,5 @@
+====== Two-Factor Admin ======
+
+W poniższej tabeli wymieniono wszystkich użytkowników, którzy mają skonfigurowany co najmniej jeden dodatkowy mechanizm uwierzytelniania. Za pomocą tego narzędzia można zresetować ustawienia użytkownika, który utracił dostęp do logowania.
+
+Uwaga: spowoduje to zresetowanie **wszystkich** mechanizmów uwierzytelniania dwuskładnikowego dla użytkownika! W zależności od konfiguracji użytkownik może być zmuszony do skonfigurowania nowego mechanizmu uwierzytelniania dwuskładnikowego przy następnym logowaniu.

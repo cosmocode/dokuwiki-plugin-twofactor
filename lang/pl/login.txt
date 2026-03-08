@@ -1,0 +1,3 @@
+====== Uwierzytelnianie dwuskładnikowe ======
+
+Proszę wprowadzić dane drugiego składnika uwierzytelniania, aby zakończyć logowanie.
