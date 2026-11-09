@@ -172,7 +172,7 @@ class action_plugin_twofactor_login extends DokuWiki_Action_Plugin
         }
 
         if (!isset($_COOKIE[self::TWOFACTOR_COOKIE])) return false;
-        $data = unserialize(base64_decode($_COOKIE[self::TWOFACTOR_COOKIE]));
+        $data = unserialize(base64_decode($_COOKIE[self::TWOFACTOR_COOKIE]), ['allowed_classes' => false]);
         if (!is_array($data)) return false;
         list($providerID, $hash,) = $data;
 
